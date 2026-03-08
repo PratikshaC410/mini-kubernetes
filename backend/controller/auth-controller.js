@@ -31,7 +31,7 @@ const register = async (req, res) => {
     const existingUser = await userdb.findOne({ email });
     console.log("Existing user found:", existingUser);
 
-    // if user exists AND verified → block registration
+    // if user exists
     if (existingUser && existingUser.isVerified) {
       return res.status(400).json({ msg: "User already exists" });
     }
@@ -40,7 +40,7 @@ const register = async (req, res) => {
     const saltRound = 10;
     const hash_password = await bcrypt.hash(password, saltRound);
 
-    // if user doesn't exist → create user
+    // if user doesn't exist then create user
     if (!existingUser) {
       await userdb.create({
         username,
@@ -108,7 +108,7 @@ const verifyotp = async (req, res) => {
     if (match_otp) {
       // mark user verified
       await userdb.updateOne({ email }, { $set: { isVerified: true } });
-      //make changes in otpdb
+
       await otpdb.updateOne(
         { email },
         {

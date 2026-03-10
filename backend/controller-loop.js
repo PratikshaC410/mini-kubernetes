@@ -1,4 +1,4 @@
-const { Deployment_db, pod_db } = require("../controller/database");
+const { Deployment_db, pod_db } = require("./controller/database");
 
 async function controllerLoop() {
   try {

@@ -155,8 +155,7 @@ const login = async (req, res) => {
 
 const create_deployment = async (req, res) => {
   try {
-    const { name, image, replicas, containerPort, cpuLimit, memoryLimit } =
-      req.body;
+    const { name, image, replicas, containerPort } = req.body;
 
     if (!name || !image || !containerPort) {
       return res.status(400).json({ message: "Missing required fields" });
@@ -167,8 +166,6 @@ const create_deployment = async (req, res) => {
       image,
       replicas,
       containerPort,
-      cpuLimit,
-      memoryLimit,
       createdBy: req.user._id,
     });
 

@@ -96,15 +96,6 @@ const desired_state_schema = new mongoose.Schema(
       required: true,
     },
 
-    cpuLimit: {
-      type: Number,
-      default: 0.5,
-    },
-    memoryLimit: {
-      type: Number,
-      default: 256,
-    },
-
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

@@ -20,8 +20,10 @@ async function controllerLoop() {
 
       const runningPods = pods.filter((p) => p.status === "running");
       const crashedPods = pods.filter((p) => p.status === "crashed");
-
-      const runningCount = runningPods.length;
+      const activePods = pods.filter(
+        (p) => p.status === "running" || p.status === "crashed",
+      );
+      const runningCount = activePods.length;
       const desiredReplicas = deployment.replicas;
 
       console.log(
@@ -84,9 +86,9 @@ async function controllerLoop() {
 
         console.log(`Need to delete ${podsToDelete} pods`);
 
-        const pods = runningPods.slice(0, podsToDelete);
+        const podtostop = runningPods.slice(0, podsToDelete);
 
-        for (const pod of pods) {
+        for (const pod of podtostop) {
           await stopContainer(pod.containerId);
           await removeContainer(pod.containerId);
 

@@ -33,8 +33,12 @@ async function removeContainer(containerId) {
 }
 
 async function inspectContainer(containerId) {
-  const container = docker.getContainer(containerId);
-  return await container.inspect();
+  try {
+    const container = docker.getContainer(containerId);
+    return await container.inspect();
+  } catch (err) {
+    return null;
+  }
 }
 
 module.exports = {

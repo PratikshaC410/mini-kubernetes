@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import "./register.css";
+
 import { toast } from "react-toastify";
 
 const Register = () => {

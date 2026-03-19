@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-
 import { toast } from "react-toastify";
+const API = process.env.REACT_APP_BACKEND_BASEURL;
 
 const Register = () => {
   const [username, setUsername] = useState("");
@@ -34,7 +34,7 @@ const Register = () => {
   const handleRegisterClick = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch(`http://localhost:5000/api/auth/register`, {
+      const response = await fetch(`${API}/api/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, email, password }),
@@ -57,7 +57,7 @@ const Register = () => {
 
   const handleOtpSubmit = async () => {
     try {
-      const respond = await fetch(`http://localhost:5000/api/auth/verify`, {
+      const respond = await fetch(`${API}/api/auth/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, otp }),

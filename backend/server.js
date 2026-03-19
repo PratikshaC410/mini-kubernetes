@@ -7,7 +7,12 @@ const app = express();
 const controllerLoop = require("./controller-loop");
 DB();
 
-app.use(cors());
+app.use(
+  cors({
+    origin: "http://localhost:3000",
+    credentials: true,
+  }),
+);
 app.use(express.json());
 
 app.use("/api/auth", authRoutes);

@@ -14,34 +14,32 @@ const Home = () => {
   };
 
   return (
-    <div className="home-landing">
+    <div>
       <h2>Mini Kubernetes</h2>
 
-      <div className="landing-content">
+      <div>
         <h1>Deploy and manage your containers</h1>
         <p>
           Mini Kubernetes lets you deploy Docker containers, scale replicas, and
           watch self-healing happen in real time.
         </p>
 
-        <div className="features">
-          <div className="feature-card">
+        <div>
+          <div>
             <h3>Deploy Apps</h3>
             <p>deploy apps with ease</p>
           </div>
-          <div className="feature-card">
+          <div>
             <h3>Scale Instantly</h3>
             <p>Increase or decrease replicas with a single click.</p>
           </div>
-          <div className="feature-card">
+          <div>
             <h3>Self Healing</h3>
             <p>Crashed containers are automatically recreated.</p>
           </div>
         </div>
 
-        <button className="cta-btn" onClick={handleCreateClick}>
-          Create Deployment
-        </button>
+        <button onClick={handleCreateClick}>Create Deployment</button>
       </div>
     </div>
   );

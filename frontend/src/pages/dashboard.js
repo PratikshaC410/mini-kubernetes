@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "./auth";
 import { toast } from "react-toastify";
-
+const API = process.env.REACT_APP_BACKEND_BASEURL;
 const Dashboard = () => {
   const { token, logoutuser } = useAuth();
   const navigate = useNavigate();
@@ -18,7 +18,7 @@ const Dashboard = () => {
 
   const fetchDeployments = async () => {
     try {
-      const res = await fetch(`http://localhost:5000/api/auth/deployments`, {
+      const res = await fetch(`${API}/api/auth/deployments`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -42,7 +42,7 @@ const Dashboard = () => {
   const handleCreate = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch(`http://localhost:5000/api/auth/deployments`, {
+      const res = await fetch(`${API}/api/auth/deployments`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -71,19 +71,16 @@ const Dashboard = () => {
       }
     } catch (err) {
       console.error(err);
-      toast("Server error");
+      toast("error");
     }
   };
 
   const handleDelete = async (id) => {
     try {
-      const res = await fetch(
-        `http://localhost:5000/api/auth/deployments/${id}`,
-        {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
+      const res = await fetch(`${API}/api/auth/deployments/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
       const data = await res.json();
 
@@ -95,7 +92,7 @@ const Dashboard = () => {
       }
     } catch (err) {
       console.error(err);
-      toast("Server error");
+      toast(" error");
     }
   };
 
@@ -106,17 +103,14 @@ const Dashboard = () => {
         : Math.max(1, currentReplicas - 1);
 
     try {
-      const res = await fetch(
-        `http://localhost:5000/api/auth/deployments/${id}/scale`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ replicas: newReplicas }),
+      const res = await fetch(`${API}/api/auth/deployments/${id}/scale`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-      );
+        body: JSON.stringify({ replicas: newReplicas }),
+      });
 
       const data = await res.json();
 
@@ -138,10 +132,10 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="dashboard">
-      <div className="navbar">
+    <div>
+      <div>
         <h2>Mini Kubernetes</h2>
-        <div className="nav-actions">
+        <div>
           <button onClick={() => setShowForm(!showForm)}>
             {showForm ? "Cancel" : "+ New Deployment"}
           </button>
@@ -150,7 +144,7 @@ const Dashboard = () => {
       </div>
 
       {showForm && (
-        <div className="create-form">
+        <div>
           <h3>Create Deployment</h3>
           <form onSubmit={handleCreate}>
             <div>
@@ -208,18 +202,21 @@ const Dashboard = () => {
         {loading ? (
           <p>Loading...</p>
         ) : deployments.length === 0 ? (
-          <p>No deployments yet. Click "+ New Deployment" to get started.</p>
+          <p>
+            No deployments yet. Click "+ New Deployment" to create your first
+            deployment.
+          </p>
         ) : (
           deployments.map((dep) => (
-            <div key={dep._id} className="deployment-card">
-              <div className="dep-info">
+            <div key={dep._id}>
+              <div>
                 <h4>{dep.name}</h4>
-                <p className="dep-image">{dep.image}</p>
-                <span className={`status ${dep.status}`}>{dep.status}</span>
+                <p>{dep.image}</p>
+                <span>{dep.status}</span>
               </div>
 
-              <div className="dep-actions">
-                <div className="replica-control">
+              <div>
+                <div>
                   <button
                     onClick={() => handleScale(dep._id, dep.replicas, "down")}
                   >
@@ -232,20 +229,7 @@ const Dashboard = () => {
                     +
                   </button>
                 </div>
-
-                <button
-                  className="view-pods-btn"
-                  onClick={() => navigate(`/deployments/${dep._id}`)}
-                >
-                  View Pods
-                </button>
-
-                <button
-                  className="delete-btn"
-                  onClick={() => handleDelete(dep._id)}
-                >
-                  Delete
-                </button>
+                <button onClick={() => handleDelete(dep._id)}>Delete</button>
               </div>
             </div>
           ))

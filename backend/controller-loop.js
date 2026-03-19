@@ -34,7 +34,7 @@ async function controllerLoop() {
       for (const pod of runningPods) {
         const info = await inspectContainer(pod.containerId);
 
-        if (!info.State.Running) {
+        if (!info || !info.State.Running) {
           console.log(`Container ${pod.containerId} crashed`);
 
           pod.status = "crashed";

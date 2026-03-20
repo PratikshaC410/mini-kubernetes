@@ -140,6 +140,18 @@ const podSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    lastExitCode: {
+      type: Number,
+      default: null,
+    },
+    crashReason: {
+      type: String,
+      default: null,
+    },
+    logs: {
+      type: String,
+      default: null,
+    },
   },
   { timestamps: true },
 );

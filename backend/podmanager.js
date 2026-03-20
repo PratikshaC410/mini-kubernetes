@@ -40,10 +40,25 @@ async function inspectContainer(containerId) {
     return null;
   }
 }
+async function getContainerLogs(containerId) {
+  try {
+    const container = docker.getContainer(containerId);
+    const logs = await container.logs({
+      stdout: true,
+      stderr: true,
+      tail: 50,
+      timestamps: true,
+    });
+    return logs.toString("utf8");
+  } catch (err) {
+    return "Could not retrieve logs";
+  }
+}
 
 module.exports = {
   createContainer,
   stopContainer,
   removeContainer,
   inspectContainer,
+  getContainerLogs,
 };

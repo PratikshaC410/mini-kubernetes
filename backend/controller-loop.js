@@ -47,9 +47,22 @@ async function controllerLoop() {
         const info = await inspectContainer(pod.containerId);
 
         if (!info || !info.State.Running) {
-          console.log(`Container ${pod.containerId} crashed`);
+          const exitCode = info?.State?.ExitCode ?? null;
+          const reason =
+            info?.State?.Error || info?.State?.OOMKilled
+              ? "OOMKilled"
+              : exitCode !== 0
+                ? `Exited with code ${exitCode}`
+                : "Unknown reason";
+
+          // capture last logs before it died
+          const logs = await getContainerLogs(pod.containerId);
 
           pod.status = "crashed";
+          pod.lastExitCode = exitCode;
+          pod.crashReason = reason;
+          pod.logs = logs;
+          pod.restartCount = (pod.restartCount || 0) + 1;
 
           await pod.save();
         }

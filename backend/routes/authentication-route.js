@@ -11,6 +11,7 @@ const {
   register,
   verifyotp,
   login,
+  get_pod_logs,
 } = require("../controller/auth-controller");
 
 const authMiddleware = require("./authmiddleware");
@@ -24,5 +25,6 @@ router.get("/deployments/:id/pods", authMiddleware, get_deployment_pods);
 router.post("/register", register);
 router.post("/verify", verifyotp);
 router.post("/login", login);
+router.get("/deployments/:id/pods/:podId/logs", authMiddleware, get_pod_logs);
 
 module.exports = router;

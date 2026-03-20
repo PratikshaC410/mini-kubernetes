@@ -15,6 +15,7 @@ const Dashboard = () => {
   const [image, setImage] = useState("");
   const [replicas, setReplicas] = useState(1);
   const [containerPort, setContainerPort] = useState("");
+  const [logsMap, setLogsMap] = useState({});
 
   const fetchDeployments = async () => {
     try {
@@ -131,6 +132,19 @@ const Dashboard = () => {
     navigate("/");
   };
 
+  const fetchPodLogs = async (depId, podId) => {
+    try {
+      const res = await fetch(
+        `${API}/api/auth/deployments/${depId}/pods/${podId}/logs`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      const data = await res.json();
+      setLogsMap((prev) => ({ ...prev, [podId]: data }));
+    } catch (err) {
+      toast("Failed to fetch logs");
+    }
+  };
+
   return (
     <div>
       <div>
@@ -142,6 +156,36 @@ const Dashboard = () => {
           <button onClick={handleLogout}>Logout</button>
         </div>
       </div>
+      {podsMap[dep._id]?.map((pod) => (
+        <div key={pod._id} className="pod-card">
+          <span>{pod.status}</span>
+          <span>{pod.containerId.slice(0, 12)}</span>
+          <span>Restarts: {pod.restartCount}</span>
+
+          {pod.crashReason && (
+            <p style={{ color: "red" }}>Reason: {pod.crashReason}</p>
+          )}
+
+          <button onClick={() => fetchPodLogs(dep._id, pod._id)}>
+            View Logs
+          </button>
+
+          {logsMap[pod._id] && (
+            <pre
+              style={{
+                background: "#1e1e1e",
+                color: "#fff",
+                padding: "10px",
+                fontSize: "12px",
+                maxHeight: "200px",
+                overflowY: "auto",
+              }}
+            >
+              {logsMap[pod._id].logs}
+            </pre>
+          )}
+        </div>
+      ))}
 
       {showForm && (
         <div>

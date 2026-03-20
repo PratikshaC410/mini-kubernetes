@@ -10,7 +10,19 @@ const {
 async function controllerLoop() {
   try {
     console.log("Controller running...");
-
+    const deletedDeployments = await Deployment_db.find({ status: "deleted" });
+    for (const dep of deletedDeployments) {
+      const orphanPods = await pod_db.find({
+        deploymentId: dep._id,
+        status: "running",
+      });
+      for (const pod of orphanPods) {
+        await stopContainer(pod.containerId);
+        await removeContainer(pod.containerId);
+        pod.status = "stopped";
+        await pod.save();
+      }
+    }
     const deployments = await Deployment_db.find({ status: "active" });
 
     for (const deployment of deployments) {

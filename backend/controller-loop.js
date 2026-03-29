@@ -5,6 +5,7 @@ const {
   stopContainer,
   removeContainer,
   inspectContainer,
+  getContainerLogs,
 } = require("./podmanager");
 
 async function controllerLoop() {
@@ -43,19 +44,22 @@ async function controllerLoop() {
       );
 
       //  look for  running containers
+      // look for running containers
       for (const pod of runningPods) {
         const info = await inspectContainer(pod.containerId);
 
         if (!info || !info.State.Running) {
           const exitCode = info?.State?.ExitCode ?? null;
-          const reason =
-            info?.State?.Error || info?.State?.OOMKilled
+          const reason = !info
+            ? "Container not found"
+            : info?.State?.OOMKilled
               ? "OOMKilled"
-              : exitCode !== 0
-                ? `Exited with code ${exitCode}`
-                : "Unknown reason";
+              : info?.State?.Error && info.State.Error !== ""
+                ? info.State.Error
+                : exitCode !== null && exitCode !== 0
+                  ? `Exited with code ${exitCode}`
+                  : "Exited with code 0 (completed)";
 
-          // capture last logs before it died
           const logs = await getContainerLogs(pod.containerId);
 
           pod.status = "crashed";
@@ -72,17 +76,26 @@ async function controllerLoop() {
       for (const pod of crashedPods) {
         console.log(`Recreating crashed pod ${pod.containerId}`);
 
-        await removeContainer(pod.containerId);
+        try {
+          await removeContainer(pod.containerId);
+        } catch (err) {
+          console.log(`Container already removed: ${pod.containerId}`);
+        }
+
+        pod.status = "stopped";
+        await pod.save();
 
         const newContainer = await createContainer(
           deployment.image,
           deployment.containerPort,
         );
 
-        pod.containerId = newContainer.id;
-        pod.status = "running";
-
-        await pod.save();
+        await pod_db.create({
+          deploymentId: deployment._id,
+          containerId: newContainer.id,
+          status: "running",
+          restartCount: pod.restartCount,
+        });
       }
 
       // Scale Up

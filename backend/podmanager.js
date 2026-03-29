@@ -23,15 +23,22 @@ async function createContainer(image, port) {
 }
 
 async function stopContainer(containerId) {
-  const container = docker.getContainer(containerId);
-  await container.stop();
+  try {
+    const container = docker.getContainer(containerId);
+    await container.stop();
+  } catch (err) {
+    console.log(`Container already stopped: ${containerId}`);
+  }
 }
 
 async function removeContainer(containerId) {
-  const container = docker.getContainer(containerId);
-  await container.remove();
+  try {
+    const container = docker.getContainer(containerId);
+    await container.remove();
+  } catch (err) {
+    console.log(`Container already removed: ${containerId}`);
+  }
 }
-
 async function inspectContainer(containerId) {
   try {
     const container = docker.getContainer(containerId);
@@ -49,7 +56,15 @@ async function getContainerLogs(containerId) {
       tail: 50,
       timestamps: true,
     });
-    return logs.toString("utf8");
+
+    const clean = logs
+      .toString("utf8")
+      .split("\n")
+      .map((line) => (line.length > 8 ? line.slice(8) : line))
+      .join("\n")
+      .trim();
+
+    return clean || "No logs available";
   } catch (err) {
     return "Could not retrieve logs";
   }

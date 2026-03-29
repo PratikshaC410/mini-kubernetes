@@ -299,15 +299,18 @@ const Dashboard = () => {
                           Created: {new Date(pod.createdAt).toLocaleString()}
                         </p>
 
-                        {pod.crashReason && (
+                        {pod.status === "crashed" && pod.crashReason && (
                           <p style={{ color: "red" }}>
                             Reason: {pod.crashReason}
                           </p>
                         )}
-
-                        <button onClick={() => fetchPodLogs(dep._id, pod._id)}>
-                          View Logs
-                        </button>
+                        {pod.status === "crashed" && (
+                          <button
+                            onClick={() => fetchPodLogs(dep._id, pod._id)}
+                          >
+                            View Logs
+                          </button>
+                        )}
 
                         {logsMap[pod._id] && <pre>{logsMap[pod._id].logs}</pre>}
                       </div>

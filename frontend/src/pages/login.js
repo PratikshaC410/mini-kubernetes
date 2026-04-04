@@ -23,7 +23,7 @@ const Login = () => {
       if (res.ok) {
         store_token_ls(res_data.token);
         toast("Login successful");
-        navigate("/");
+        navigate("/dashboard");
       } else {
         toast(res_data.msg || "Login failed");
       }

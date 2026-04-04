@@ -1,8 +1,13 @@
-const { Deployment_db, pod_db, otpdb, DB, userdb } = require("./database");
+const { Deployment_db, otpdb, DB, userdb } = require("./database");
 require("dotenv").config();
 const bcrypt = require("bcryptjs");
 const nodemailer = require("nodemailer");
-
+const {
+  createDeployment,
+  scaleDeployment,
+  deleteDeployment,
+  getDeployments,
+} = require("../services/k8sServices");
 const transporter = nodemailer.createTransport({
   service: "gmail",
   port: 587,
@@ -158,57 +163,35 @@ const create_deployment = async (req, res) => {
     const { name, image, replicas, containerPort } = req.body;
 
     if (!name || !image || !containerPort) {
-      return res.status(400).json({ message: "Missing required fields" });
+      return res.status(400).json({ msg: "All fields required" });
     }
 
-    const deployment = await Deployment_db.create({
-      name,
+    const uniqueName = `${name}-${Date.now()}`;
+
+    // Create in Kubernetes
+    await createDeployment({
+      name: uniqueName,
       image,
       replicas,
       containerPort,
-      createdBy: req.user._id,
+    });
+
+    // Save in DB
+    const deployment = await Deployment_db.create({
+      name: uniqueName,
+      image,
+      replicas,
+      containerPort,
+      createdBy: req.user?._id,
     });
 
     res.status(201).json({
-      message: "Deployment created successfully",
+      msg: "Deployment created",
       deployment,
     });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-const delete_deployment = async (req, res) => {
-  try {
-    const deployment = await Deployment_db.findById(req.params.id);
-
-    if (!deployment) {
-      return res.status(404).json({ message: "Deployment not found" });
-    }
-
-    if (deployment.createdBy.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: "Unauthorized" });
-    }
-
-    deployment.status = "deleted";
-    await deployment.save();
-
-    res.json({ message: "Deployment deleted successfully" });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-const get_deployments = async (req, res) => {
-  try {
-    const deployments = await Deployment_db.find({
-      createdBy: req.user._id,
-      status: "active",
-    });
-
-    res.json(deployments);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ msg: "Error creating deployment" });
   }
 };
 
@@ -219,87 +202,61 @@ const scale_deployment = async (req, res) => {
     const deployment = await Deployment_db.findById(req.params.id);
 
     if (!deployment) {
-      return res.status(404).json({ message: "Deployment not found" });
+      return res.status(404).json({ msg: "Deployment not found" });
     }
 
-    deployment.replicas = replicas;
+    await scaleDeployment(deployment.name, replicas);
 
+    // Update DB
+    deployment.replicas = replicas;
     await deployment.save();
 
     res.json({
-      message: "Deployment scaled successfully",
+      msg: "Scaled successfully",
       replicas,
     });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ msg: "Error scaling deployment" });
   }
 };
 
-const update_deployment = async (req, res) => {
+const delete_deployment = async (req, res) => {
   try {
-    const updates = req.body;
+    const deployment = await Deployment_db.findById(req.params.id);
 
-    const deployment = await Deployment_db.findByIdAndUpdate(
-      req.params.id,
-      updates,
-      { new: true },
-    );
-
-    res.json({
-      message: "Deployment updated",
-      deployment,
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-const get_deployment_pods = async (req, res) => {
-  try {
-    const pods = await pod_db.find({
-      deploymentId: req.params.id,
-    });
-
-    res.json(pods);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-const get_pod_logs = async (req, res) => {
-  try {
-    const pod = await pod_db.findById(req.params.podId);
-
-    if (!pod) {
-      return res.status(404).json({ message: "Pod not found" });
+    if (!deployment) {
+      return res.status(404).json({ msg: "Deployment not found" });
     }
 
-    const deployment = await Deployment_db.findById(pod.deploymentId);
-    if (deployment.createdBy.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: "Unauthorized" });
-    }
+    await deleteDeployment(deployment.name);
 
-    res.json({
-      podId: pod._id,
-      status: pod.status,
-      exitCode: pod.lastExitCode,
-      crashReason: pod.crashReason,
-      restartCount: pod.restartCount,
-      logs: pod.logs || "No logs available",
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    deployment.status = "deleted";
+    await deployment.save();
+
+    res.json({ msg: "Deployment deleted" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ msg: "Error deleting deployment" });
   }
 };
+
+const get_all_deployments = async (req, res) => {
+  try {
+    const deployments = await getDeployments();
+    res.json(deployments);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ msg: "Error fetching deployments" });
+  }
+};
+
 module.exports = {
-  create_deployment,
-  get_deployments,
-  delete_deployment,
-  scale_deployment,
-  update_deployment,
-  get_deployment_pods,
   register,
   verifyotp,
   login,
-  get_pod_logs,
+  create_deployment,
+  scale_deployment,
+  delete_deployment,
+  get_all_deployments,
 };

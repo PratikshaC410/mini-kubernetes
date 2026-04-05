@@ -10,9 +10,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
 
   const [deployments, setDeployments] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-
   const [replicaInputs, setReplicaInputs] = useState({});
 
   const [name, setName] = useState("");
@@ -29,19 +27,17 @@ const Dashboard = () => {
       if (res.ok) {
         setDeployments(data);
       } else {
-        toast(data.message || "Failed to fetch deployments");
+        toast.error(data.message || "Failed to fetch deployments");
       }
     } catch (err) {
       console.error(err);
-      toast("Server error");
-    } finally {
-      setLoading(false);
+      toast.error("Server error");
     }
   };
 
   useEffect(() => {
-    fetchDeployments();
-  }, []);
+    if (token) fetchDeployments();
+  }, [token]);
 
   const handleCreate = async (e) => {
     e.preventDefault();
@@ -63,7 +59,7 @@ const Dashboard = () => {
       const data = await res.json();
 
       if (res.ok) {
-        toast("Deployment created!");
+        toast.success("Deployment created!");
         setName("");
         setImage("");
         setReplicas(1);
@@ -71,38 +67,37 @@ const Dashboard = () => {
         setShowForm(false);
         fetchDeployments();
       } else {
-        toast(data.message || "Failed to create deployment");
+        toast.error(data.message || "Failed to create deployment");
       }
     } catch (err) {
       console.error(err);
-      toast(" error");
+      toast.error("Error creating deployment");
     }
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (depName) => {
     try {
-      const res = await fetch(`${API}/api/auth/deployments/${id}`, {
+      const res = await fetch(`${API}/api/auth/deployments/${depName}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      const data = await res.json();
-
       if (res.ok) {
-        toast("Deployment deleted");
+        toast.success("Deployment deleted");
         fetchDeployments();
       } else {
-        toast(data.message || "Failed to delete");
+        const data = await res.json();
+        toast.error(data.message || "Failed to delete");
       }
     } catch (err) {
       console.error(err);
-      toast("Server error");
+      toast.error("Server error");
     }
   };
 
-  const handleScaleDirect = async (id, newReplicas) => {
+  const handleScale = async (depName, newReplicas) => {
     try {
-      const res = await fetch(`${API}/api/auth/deployments/${id}/scale`, {
+      const res = await fetch(`${API}/api/auth/deployments/${depName}/scale`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -111,17 +106,16 @@ const Dashboard = () => {
         body: JSON.stringify({ replicas: Number(newReplicas) }),
       });
 
-      const data = await res.json();
-
       if (res.ok) {
-        toast(`Scaled to ${newReplicas} replicas`);
+        toast.success(`Scaled ${depName} to ${newReplicas} replicas`);
         fetchDeployments();
       } else {
-        toast(data.message || "Failed to scale");
+        const data = await res.json();
+        toast.error(data.message || "Failed to scale");
       }
     } catch (err) {
       console.error(err);
-      toast("Server error");
+      toast.error("Server error");
     }
   };
 
@@ -132,22 +126,35 @@ const Dashboard = () => {
 
   return (
     <div>
-      <div>
-        <h2>Deployments</h2>
+      <div
+        style={{
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <h2>Kubernetes Dashboard</h2>
         <div>
           <button onClick={() => setShowForm(!showForm)}>
             {showForm ? "Cancel" : "New Deployment"}
           </button>
-          <button onClick={handleLogout}>Logout</button>
+          <button onClick={handleLogout} style={{ marginLeft: "10px" }}>
+            Logout
+          </button>
         </div>
       </div>
 
+      <hr />
+
       {showForm && (
-        <div>
+        <div
+          style={{
+            border: "1px ",
+          }}
+        >
           <h3>Create Deployment</h3>
           <form onSubmit={handleCreate}>
             <div>
-              <label>Deployment Name:</label>
+              <label>Name: </label>
               <input
                 type="text"
                 value={name}
@@ -156,7 +163,7 @@ const Dashboard = () => {
               />
             </div>
             <div>
-              <label>Docker Image:</label>
+              <label>Image: </label>
               <input
                 type="text"
                 value={image}
@@ -165,7 +172,7 @@ const Dashboard = () => {
               />
             </div>
             <div>
-              <label>Replicas:</label>
+              <label>Replicas: </label>
               <input
                 type="number"
                 min={1}
@@ -175,7 +182,7 @@ const Dashboard = () => {
               />
             </div>
             <div>
-              <label>Container Port:</label>
+              <label>Port: </label>
               <input
                 type="number"
                 value={containerPort}
@@ -183,53 +190,61 @@ const Dashboard = () => {
                 required
               />
             </div>
-            <button type="submit">Deploy</button>
+            <button type="submit" style={{ marginTop: "10px" }}>
+              Deploy
+            </button>
           </form>
         </div>
       )}
 
       <div>
-        <h3>Your Deployments</h3>
-
-        {loading ? (
-          <p>Loading...</p>
-        ) : deployments.length === 0 ? (
-          <p>Create your deployments</p>
+        <h3>your Deployments</h3>
+        {deployments.length === 0 ? (
+          <p>No deployments found</p>
         ) : (
           deployments.map((dep) => (
-            <div key={dep._id}>
+            <div
+              key={dep.name}
+              style={{
+                border: "1px solid #eee",
+                padding: "10px",
+                margin: "10px 0",
+              }}
+            >
               <div>
                 <h4>{dep.name}</h4>
-                <p>{dep.image}</p>
-                <span>{dep.status}</span>
+                <p>
+                  <strong>Image:</strong> {dep.image} | <strong>Status:</strong>{" "}
+                  {dep.status}
+                </p>
               </div>
 
-              <div>
+              <div style={{ marginTop: "10px" }}>
                 <input
                   type="number"
                   min={1}
-                  value={replicaInputs[dep._id] ?? dep.replicas}
+                  value={replicaInputs[dep.name] ?? dep.replicas}
                   onChange={(e) =>
                     setReplicaInputs((prev) => ({
                       ...prev,
-                      [dep._id]: e.target.value,
+                      [dep.name]: e.target.value,
                     }))
                   }
                 />
-                <span> replicas</span>
+                <span> replicas </span>
 
                 <button
                   onClick={() =>
-                    handleScaleDirect(
-                      dep._id,
-                      replicaInputs[dep._id] ?? dep.replicas,
+                    handleScale(
+                      dep.name,
+                      replicaInputs[dep.name] ?? dep.replicas,
                     )
                   }
                 >
-                  Scale
+                  Update Scale
                 </button>
 
-                <button onClick={() => handleDelete(dep._id)}>Delete</button>
+                <button onClick={() => handleDelete(dep.name)}>Delete</button>
               </div>
             </div>
           ))

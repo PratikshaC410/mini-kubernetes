@@ -1,20 +1,21 @@
-const { Deployment_db, otpdb, DB, userdb } = require("./database");
+const { otpdb, userdb } = require("./database");
 require("dotenv").config();
 const bcrypt = require("bcryptjs");
 const nodemailer = require("nodemailer");
+
 const {
   createDeployment,
   scaleDeployment,
   deleteDeployment,
   getDeployments,
 } = require("../services/k8sServices");
+
 const transporter = nodemailer.createTransport({
   service: "gmail",
   port: 587,
   auth: {
     user: "chougulepratiksha23@gmail.com",
     pass: process.env.GOOGLE_SECRET_KEY,
-    expiresIn: "15m",
   },
 });
 
@@ -28,24 +29,16 @@ function generateOTP() {
 
 const register = async (req, res) => {
   try {
-    console.log("Request body:", req.body);
-
     const { username, email, password } = req.body;
 
-    // check if user already exists
     const existingUser = await userdb.findOne({ email });
-    console.log("Existing user found:", existingUser);
 
-    // if user exists
     if (existingUser && existingUser.isVerified) {
       return res.status(400).json({ msg: "User already exists" });
     }
 
-    // hash password
-    const saltRound = 10;
-    const hash_password = await bcrypt.hash(password, saltRound);
+    const hash_password = await bcrypt.hash(password, 10);
 
-    // if user doesn't exist then create user
     if (!existingUser) {
       await userdb.create({
         username,
@@ -55,20 +48,12 @@ const register = async (req, res) => {
       });
     }
 
-    // generate OTP
     const otp = generateOTP();
-
-    // hash OTP
-    const saltround = 10;
-    const hash_otp = await bcrypt.hash(otp, saltround);
-
-    // expire time (10 minutes)
+    const hash_otp = await bcrypt.hash(otp, 10);
     const expire_time = new Date(Date.now() + 10 * 60 * 1000);
 
-    // delete old OTP if exists
     await otpdb.deleteMany({ email });
 
-    // save OTP
     await otpdb.create({
       username,
       email,
@@ -78,20 +63,17 @@ const register = async (req, res) => {
       expire_time,
     });
 
-    // send OTP email
     await transporter.sendMail({
       from: '"mini-kubernetes" <chougulepratiksha23@gmail.com>',
       to: email,
       subject: "Email Verification OTP",
-      html: `<p>Your verification code is <b>${otp}</b>. Please enter it to verify your email.</p>`,
+      html: `<p>Your verification code is <b>${otp}</b></p>`,
     });
 
-    return res.status(200).json({
-      msg: "Registered successfully. OTP sent to email.",
-    });
+    res.status(200).json({ msg: "OTP sent" });
   } catch (err) {
-    console.error("REGISTER ERROR:", err);
-    return res.status(500).json({ msg: "error" });
+    console.error(err);
+    res.status(500).json({ msg: "error" });
   }
 };
 
@@ -99,36 +81,26 @@ const verifyotp = async (req, res) => {
   try {
     const { email, otp } = req.body;
 
-    const otprecord = await otpdb.findOne({ email });
+    const record = await otpdb.findOne({ email });
 
-    if (!otprecord) {
-      return res.status(404).json({ msg: "Invalid email" });
+    if (!record) return res.status(404).json({ msg: "Invalid email" });
+
+    if (record.expire_time < new Date()) {
+      return res.status(400).json({ msg: "OTP expired" });
     }
 
-    if (otprecord.expire_time < new Date()) {
-      return res.status(400).json({ msg: "OTP has expired" });
+    const match = await bcrypt.compare(otp, record.otp);
+
+    if (!match) {
+      return res.status(400).json({ msg: "Invalid OTP" });
     }
 
-    const match_otp = await bcrypt.compare(otp, otprecord.otp);
-    if (match_otp) {
-      // mark user verified
-      await userdb.updateOne({ email }, { $set: { isVerified: true } });
+    await userdb.updateOne({ email }, { $set: { isVerified: true } });
 
-      await otpdb.updateOne(
-        { email },
-        {
-          $set: { is_otp_used: true },
-          $inc: { num_attempts: 1 },
-        },
-      );
-
-      return res.status(200).json({ msg: "Email verified successfully" });
-    } else {
-      return res.status(400).json({ msg: "OTP is invalid" });
-    }
+    res.json({ msg: "Verified" });
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ msg: "error" });
+    res.status(500).json({ msg: "error" });
   }
 };
 
@@ -137,117 +109,107 @@ const login = async (req, res) => {
     const { email, password } = req.body;
 
     const user = await userdb.findOne({ email });
-    if (!user) {
-      return res.status(404).json({ msg: "User not found." });
-    }
+    if (!user) return res.status(404).json({ msg: "User not found" });
 
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(401).json({ msg: "Invalid email or password!" });
-    }
+    if (!isMatch) return res.status(401).json({ msg: "Invalid credentials" });
 
     const token = await user.generateToken();
 
-    return res.status(200).json({
-      msg: "Login successful",
-      token,
-    });
+    res.json({ msg: "Login success", token });
   } catch (err) {
-    console.error("LOGIN ERROR", err);
-    return res.status(400).json({ msg: "error in login" });
+    console.error(err);
+    res.status(500).json({ msg: "error" });
   }
 };
 
+// CREATE
 const create_deployment = async (req, res) => {
   try {
     const { name, image, replicas, containerPort } = req.body;
 
-    if (!name || !image || !containerPort) {
-      return res.status(400).json({ msg: "All fields required" });
-    }
+    const safeName = name.toLowerCase().replace(/[^a-z0-9]/g, "-");
+    const uniqueName = `${safeName}-${Date.now()}`;
 
-    const uniqueName = `${name}-${Date.now()}`;
+    const finalImage = image || "registry.k8s.io/pause:3.10";
 
-    // Create in Kubernetes
     await createDeployment({
       name: uniqueName,
-      image,
-      replicas,
-      containerPort,
-    });
-
-    // Save in DB
-    const deployment = await Deployment_db.create({
-      name: uniqueName,
-      image,
-      replicas,
-      containerPort,
-      createdBy: req.user?._id,
+      image: finalImage,
+      replicas: replicas || 1,
+      containerPort: containerPort || 80,
     });
 
     res.status(201).json({
-      msg: "Deployment created",
-      deployment,
+      msg: "Deployment created successfully",
+      name: uniqueName,
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ msg: "Error creating deployment" });
+    console.error("K8s Create Error:", err.body || err.message);
+    res.status(500).json({
+      msg: "Error creating deployment",
+      error: err.body?.message || err.message,
+    });
   }
 };
 
+// scale the deployment
 const scale_deployment = async (req, res) => {
   try {
     const { replicas } = req.body;
+    const name = req.params.id;
 
-    const deployment = await Deployment_db.findById(req.params.id);
-
-    if (!deployment) {
-      return res.status(404).json({ msg: "Deployment not found" });
+    if (!name || name === "undefined") {
+      return res.status(400).json({ msg: "Deployment name is required" });
     }
 
-    await scaleDeployment(deployment.name, replicas);
-
-    // Update DB
-    deployment.replicas = replicas;
-    await deployment.save();
+    await scaleDeployment(name, replicas);
 
     res.json({
-      msg: "Scaled successfully",
-      replicas,
+      msg: `Scaled ${name} to ${replicas} replicas`,
+      replicas: parseInt(replicas),
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ msg: "Error scaling deployment" });
+    console.error("K8s Scale Error:", err.body || err.message);
+    res.status(500).json({
+      msg: "Error scaling deployment",
+      error: err.body?.message || err.message,
+    });
   }
 };
 
+// delete deployments
 const delete_deployment = async (req, res) => {
   try {
-    const deployment = await Deployment_db.findById(req.params.id);
+    const name = req.params.id;
 
-    if (!deployment) {
-      return res.status(404).json({ msg: "Deployment not found" });
+    if (!name || name === "undefined") {
+      return res.status(400).json({ msg: "Deployment name is required" });
     }
 
-    await deleteDeployment(deployment.name);
+    await deleteDeployment(name);
 
-    deployment.status = "deleted";
-    await deployment.save();
-
-    res.json({ msg: "Deployment deleted" });
+    res.json({ msg: `Deployment ${name} deleted` });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ msg: "Error deleting deployment" });
+    console.error("K8s Delete Error:", err.body || err.message);
+    res.status(500).json({
+      msg: "Error deleting deployment",
+      error: err.body?.message || err.message,
+    });
   }
 };
 
+// get deployments
 const get_all_deployments = async (req, res) => {
   try {
     const deployments = await getDeployments();
     res.json(deployments);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ msg: "Error fetching deployments" });
+    console.error("K8s Get Error:", err.body || err.message);
+    res.status(500).json({
+      msg: "Error fetching deployments",
+      error: err.body?.message || err.message,
+    });
   }
 };
 

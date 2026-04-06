@@ -5,7 +5,6 @@ const nodemailer = require("nodemailer");
 
 const {
   createDeployment,
-  scaleDeployment,
   deleteDeployment,
   getDeployments,
 } = require("../services/k8sServices");
@@ -153,31 +152,6 @@ const create_deployment = async (req, res) => {
   }
 };
 
-// scale the deployment
-const scale_deployment = async (req, res) => {
-  try {
-    const { replicas } = req.body;
-    const name = req.params.id;
-
-    if (!name || name === "undefined") {
-      return res.status(400).json({ msg: "Deployment name is required" });
-    }
-
-    await scaleDeployment(name, replicas);
-
-    res.json({
-      msg: `Scaled ${name} to ${replicas} replicas`,
-      replicas: parseInt(replicas),
-    });
-  } catch (err) {
-    console.error("K8s Scale Error:", err.body || err.message);
-    res.status(500).json({
-      msg: "Error scaling deployment",
-      error: err.body?.message || err.message,
-    });
-  }
-};
-
 // delete deployments
 const delete_deployment = async (req, res) => {
   try {
@@ -218,7 +192,6 @@ module.exports = {
   verifyotp,
   login,
   create_deployment,
-  scale_deployment,
   delete_deployment,
   get_all_deployments,
 };

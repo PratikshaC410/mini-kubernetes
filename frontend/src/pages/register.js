@@ -84,13 +84,24 @@ const Register = () => {
   };
 
   return (
-    <div className="register-div">
-      <div className="register-left"></div>
+    <div>
+      <div></div>
 
-      <div className="register-right">
-        <h1 className="heading">Register</h1>
+      <div>
+        <h1
+          style={{
+            textAlign: "center",
+          }}
+        >
+          Register
+        </h1>
 
-        <form onSubmit={handleRegisterClick}>
+        <form
+          onSubmit={handleRegisterClick}
+          style={{
+            textAlign: "center",
+          }}
+        >
           <div className="username">
             <label>Username: </label>
             <input
@@ -101,7 +112,7 @@ const Register = () => {
             />
           </div>
 
-          <div className="email">
+          <div>
             <label>Email: </label>
             <input
               type="email"
@@ -111,7 +122,7 @@ const Register = () => {
             />
           </div>
 
-          <div className="pass">
+          <div>
             <label>Password: </label>
             <input
               type="password"
@@ -125,7 +136,7 @@ const Register = () => {
         </form>
 
         {showOtpPopup && (
-          <div className="otp">
+          <div>
             <h2>Enter OTP</h2>
             <p>Time remaining: {time_in_min(timer)}</p>
 

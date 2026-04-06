@@ -95,30 +95,6 @@ const Dashboard = () => {
     }
   };
 
-  const handleScale = async (depName, newReplicas) => {
-    try {
-      const res = await fetch(`${API}/api/auth/deployments/${depName}/scale`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ replicas: Number(newReplicas) }),
-      });
-
-      if (res.ok) {
-        toast.success(`Scaled ${depName} to ${newReplicas} replicas`);
-        fetchDeployments();
-      } else {
-        const data = await res.json();
-        toast.error(data.message || "Failed to scale");
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error("Server error");
-    }
-  };
-
   const handleLogout = () => {
     logoutuser();
     navigate("/");
@@ -232,17 +208,6 @@ const Dashboard = () => {
                   }
                 />
                 <span> replicas </span>
-
-                <button
-                  onClick={() =>
-                    handleScale(
-                      dep.name,
-                      replicaInputs[dep.name] ?? dep.replicas,
-                    )
-                  }
-                >
-                  Update Scale
-                </button>
 
                 <button onClick={() => handleDelete(dep.name)}>Delete</button>
               </div>

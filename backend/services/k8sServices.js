@@ -46,26 +46,6 @@ const createDeployment = async ({ name, image, replicas, containerPort }) => {
   });
 };
 
-// SCALE DEPLOYMENT
-const scaleDeployment = async (name, replicas) => {
-  return await k8sAppsApi.patchNamespacedDeployment(
-    {
-      name: name,
-      namespace: NAMESPACE,
-      body: {
-        spec: {
-          replicas: parseInt(replicas),
-        },
-      },
-    },
-    undefined,
-    undefined,
-    undefined,
-    undefined,
-    { headers: { "Content-Type": "application/merge-patch+json" } },
-  );
-};
-
 // DELETE DEPLOYMENT
 const deleteDeployment = async (name) => {
   return await k8sAppsApi.deleteNamespacedDeployment({
@@ -100,5 +80,4 @@ module.exports = {
   createDeployment,
   getDeployments,
   deleteDeployment,
-  scaleDeployment,
 };

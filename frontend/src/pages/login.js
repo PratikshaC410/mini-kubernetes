@@ -34,38 +34,45 @@ const Login = () => {
   };
 
   return (
-    <div className="login-div">
-      <div className="login-left"></div>
+    <div>
+      <h1
+        style={{
+          textAlign: "center",
+        }}
+      >
+        Login
+      </h1>
 
-      <div className="login-right">
-        <h1 className="heading">Login</h1>
+      <form
+        onSubmit={handlesubmit}
+        style={{
+          textAlign: "center",
+        }}
+      >
+        <div>
+          <label>Email:</label>
+          <input
+            type="email"
+            placeholder="Enter Email"
+            value={email}
+            onChange={(e) => setemail(e.target.value)}
+            required
+          />
+        </div>
 
-        <form onSubmit={handlesubmit}>
-          <div>
-            <label>Email:</label>
-            <input
-              type="email"
-              placeholder="Enter Email"
-              value={email}
-              onChange={(e) => setemail(e.target.value)}
-              required
-            />
-          </div>
+        <div>
+          <label>Password:</label>
+          <input
+            type="password"
+            placeholder="Enter Password"
+            value={password}
+            onChange={(e) => setpassword(e.target.value)}
+            required
+          />
+        </div>
 
-          <div>
-            <label>Password:</label>
-            <input
-              type="password"
-              placeholder="Enter Password"
-              value={password}
-              onChange={(e) => setpassword(e.target.value)}
-              required
-            />
-          </div>
-
-          <button type="submit">Login</button>
-        </form>
-      </div>
+        <button type="submit">Login</button>
+      </form>
     </div>
   );
 };

@@ -7,6 +7,7 @@ const k8sAppsApi = kc.makeApiClient(k8s.AppsV1Api);
 const NAMESPACE = "default";
 
 // CREATE DEPLOYMENT
+
 const createDeployment = async ({ name, image, replicas, containerPort }) => {
   const k8sName = name.replace(/\s+/g, "-").toLowerCase();
 
@@ -40,40 +41,67 @@ const createDeployment = async ({ name, image, replicas, containerPort }) => {
     },
   };
 
-  return await k8sAppsApi.createNamespacedDeployment({
-    namespace: NAMESPACE,
-    body: deploymentManifest,
-  });
+  try {
+    const response = await k8sAppsApi.createNamespacedDeployment(
+      NAMESPACE,
+      deploymentManifest,
+    );
+    return response.body || response;
+  } catch (error) {
+    console.error(
+      "K8s API Error (Create):",
+      error.response?.body || error.message,
+    );
+    throw error;
+  }
 };
 
-// DELETE DEPLOYMENT
+//  DELETE DEPLOYMENT
+
 const deleteDeployment = async (name) => {
-  return await k8sAppsApi.deleteNamespacedDeployment({
-    name: name,
-    namespace: NAMESPACE,
-  });
+  try {
+    const response = await k8sAppsApi.deleteNamespacedDeployment(
+      name,
+      NAMESPACE,
+    );
+    return response.body || response;
+  } catch (error) {
+    console.error(
+      "K8s API Error (Delete):",
+      error.response?.body || error.message,
+    );
+    throw error;
+  }
 };
 
-// GET DEPLOYMENTS
+//  GET DEPLOYMENTS
+
 const getDeployments = async () => {
-  const res = await k8sAppsApi.listNamespacedDeployment({
-    namespace: NAMESPACE,
-  });
-  const items = res.items || res.body?.items || [];
+  try {
+    const res = await k8sAppsApi.listNamespacedDeployment(NAMESPACE);
 
-  return items.map((dep) => {
-    const desired = dep.spec.replicas || 0;
-    const available = dep.status?.availableReplicas || 0;
+    const items = res.body ? res.body.items : res.items || [];
 
-    return {
-      name: dep.metadata.name,
-      image: dep.spec.template.spec.containers[0]?.image || "N/A",
-      replicas: desired,
-      availableReplicas: available,
-      status: available >= desired && desired > 0 ? "Running" : "Pending",
-      creationTimestamp: dep.metadata.creationTimestamp,
-    };
-  });
+    return items.map((dep) => {
+      const desired = dep.spec?.replicas || 0;
+      const available = dep.status?.availableReplicas || 0;
+
+      return {
+        name: dep.metadata.name,
+        image: dep.spec.template.spec.containers[0]?.image || "N/A",
+        replicas: desired,
+        availableReplicas: available,
+        status: available >= desired && desired > 0 ? "Running" : "Pending",
+        creationTimestamp: dep.metadata.creationTimestamp,
+      };
+    });
+  } catch (error) {
+    console.error(
+      "K8s API Error (Get):",
+      error.response?.body || error.message,
+    );
+    return [];
+  }
 };
 
 module.exports = {

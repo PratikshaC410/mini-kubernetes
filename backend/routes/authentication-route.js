@@ -5,19 +5,24 @@ const {
   create_deployment,
   get_all_deployments,
   delete_deployment,
-  scale_deployment,
   register,
   verifyotp,
   login,
 } = require("../controller/auth-controller");
+console.log({
+  create_deployment,
+  get_all_deployments,
+  delete_deployment,
+  register,
+  verifyotp,
+  login,
+});
 
 const authMiddleware = require("./authmiddleware");
 
 router.post("/deployments", authMiddleware, create_deployment);
 router.get("/deployments", authMiddleware, get_all_deployments);
 router.delete("/deployments/:id", authMiddleware, delete_deployment);
-
-router.post("/deployments/:id/scale", authMiddleware, scale_deployment);
 
 router.post("/register", register);
 router.post("/verify", verifyotp);

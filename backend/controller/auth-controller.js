@@ -1,4 +1,4 @@
-const { otpdb, userdb } = require("./database");
+const { otpdb, userdb, Deployment_db } = require("./database");
 require("dotenv").config();
 const bcrypt = require("bcryptjs");
 const nodemailer = require("nodemailer");
@@ -128,7 +128,7 @@ const login = async (req, res) => {
 const create_deployment = async (req, res) => {
   try {
     const { name, image, replicas, containerPort } = req.body;
-    const userId = req.user.userId;
+    const userId = req.userId;
 
     const safeName = name.toLowerCase().replace(/[^a-z0-9]/g, "-");
     const uniqueName = `${safeName}-${Date.now()}`;
@@ -188,7 +188,7 @@ const delete_deployment = async (req, res) => {
 // get user deployments
 const get_all_deployments = async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const userId = req.userId;
 
     // get desired state from DB for this user
     const myDesiredApps = await Deployment_db.find({
@@ -220,7 +220,7 @@ const get_all_deployments = async (req, res) => {
 const scale_deployment = async (req, res) => {
   try {
     const { name, replicas } = req.body;
-    const userId = req.user.userId;
+    const userId = req.userId;
 
     // UPDATE DESIRED STATE (MongoDB)
     const updatedDb = await Deployment_db.findOneAndUpdate(

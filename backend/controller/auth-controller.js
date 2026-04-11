@@ -123,30 +123,41 @@ const login = async (req, res) => {
 };
 
 // CREATE
+
 const create_deployment = async (req, res) => {
   try {
     const { name, image, replicas, containerPort } = req.body;
+    const userId = req.user.userId;
 
     const safeName = name.toLowerCase().replace(/[^a-z0-9]/g, "-");
     const uniqueName = `${safeName}-${Date.now()}`;
 
-    const finalImage = image || "registry.k8s.io/pause:3.10";
-
-    await createDeployment({
+    // saving to mongodb the desired state
+    //job of your API Server
+    const desiredState = await Deployment_db.create({
       name: uniqueName,
-      image: finalImage,
+      image: image || "registry.k8s.io/pause:3.10",
       replicas: replicas || 1,
       containerPort: containerPort || 80,
+      createdBy: userId,
+      status: "active",
+    });
+
+    //this is the actual state
+    await createDeployment({
+      name: uniqueName,
+      image: desiredState.image,
+      replicas: desiredState.replicas,
+      containerPort: desiredState.containerPort,
     });
 
     res.status(201).json({
-      msg: "Deployment created successfully",
-      name: uniqueName,
+      msg: "Deployment created and recorded",
+      deployment: desiredState,
     });
   } catch (err) {
-    console.error("K8s Create Error:", err.body || err.message);
     res.status(500).json({
-      msg: "Error creating deployment",
+      msg: "Error in creating deployment",
       error: err.body?.message || err.message,
     });
   }
@@ -173,11 +184,29 @@ const delete_deployment = async (req, res) => {
   }
 };
 
-// get deployments
+// get user deployments
 const get_all_deployments = async (req, res) => {
   try {
-    const deployments = await getDeployments();
-    res.json(deployments);
+    const userId = req.user.userId;
+
+    // get desired state from DB for this user
+    const myDesiredApps = await Deployment_db.find({
+      createdBy: userId,
+      status: "active",
+    });
+
+    // get actual state from K8s
+    const k8sApps = await getDeployments();
+
+    const result = myDesiredApps.map((dbApp) => {
+      const actual = k8sApps.find((k) => k.name === dbApp.name);
+      return {
+        ...dbApp._doc,
+        actualStatus: actual ? actual.status : "Offline",
+        availableReplicas: actual ? actual.availableReplicas : 0,
+      };
+    });
+    res.json(result);
   } catch (err) {
     console.error("K8s Get Error:", err.body || err.message);
     res.status(500).json({

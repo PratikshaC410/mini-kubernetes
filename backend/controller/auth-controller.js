@@ -7,6 +7,7 @@ const {
   createDeployment,
   deleteDeployment,
   getDeployments,
+  scaleDeployment,
 } = require("../services/k8sServices");
 
 const transporter = nodemailer.createTransport({
@@ -216,6 +217,35 @@ const get_all_deployments = async (req, res) => {
   }
 };
 
+const scale_deployment = async (req, res) => {
+  try {
+    const { name, replicas } = req.body;
+    const userId = req.user.userId;
+
+    // UPDATE DESIRED STATE (MongoDB)
+    const updatedDb = await Deployment_db.findOneAndUpdate(
+      { name, createdBy: userId },
+      { replicas: parseInt(replicas) },
+      { new: true },
+    );
+
+    if (!updatedDb) {
+      return res
+        .status(404)
+        .json({ msg: "Deployment not found in your records" });
+    }
+
+    //  ACTIVATE ACTUAL STATE (K8s)
+    await scaleDeployment(name, replicas);
+
+    res.json({
+      msg: `Scaling request for ${name} initiated`,
+      desiredReplicas: updatedDb.replicas,
+    });
+  } catch (err) {
+    res.status(500).json({ msg: "Scaling failed", error: err.message });
+  }
+};
 module.exports = {
   register,
   verifyotp,
@@ -223,4 +253,5 @@ module.exports = {
   create_deployment,
   delete_deployment,
   get_all_deployments,
+  scale_deployment,
 };

@@ -36,7 +36,12 @@ const Dashboard = () => {
   };
 
   useEffect(() => {
-    if (token) fetchDeployments();
+    if (token) {
+      fetchDeployments();
+      // Set an interval to refresh status automatically every 10s
+      const interval = setInterval(fetchDeployments, 10000);
+      return () => clearInterval(interval);
+    }
   }, [token]);
 
   const handleCreate = async (e) => {
@@ -75,7 +80,39 @@ const Dashboard = () => {
     }
   };
 
+  // --- NEW SCALING FUNCTION ---
+  const handleScale = async (depName) => {
+    const newCount = replicaInputs[depName];
+    if (!newCount) return;
+
+    try {
+      const res = await fetch(`${API}/api/auth/deployments/scale`, {
+        method: "PATCH", // Using PATCH for partial update
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name: depName,
+          replicas: Number(newCount),
+        }),
+      });
+
+      if (res.ok) {
+        toast.info(`Scaling ${depName} to ${newCount}...`);
+        fetchDeployments();
+      } else {
+        const data = await res.json();
+        toast.error(data.message || "Scaling failed");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Scaling error");
+    }
+  };
+
   const handleDelete = async (depName) => {
+    if (!window.confirm(`Delete ${depName}?`)) return;
     try {
       const res = await fetch(`${API}/api/auth/deployments/${depName}`, {
         method: "DELETE",
@@ -101,9 +138,10 @@ const Dashboard = () => {
   };
 
   return (
-    <div>
+    <div style={{ padding: "20px", maxWidth: "1200px", margin: "auto" }}>
       <div
         style={{
+          display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
         }}
@@ -113,7 +151,14 @@ const Dashboard = () => {
           <button onClick={() => setShowForm(!showForm)}>
             {showForm ? "Cancel" : "New Deployment"}
           </button>
-          <button onClick={handleLogout} style={{ marginLeft: "10px" }}>
+          <button
+            onClick={handleLogout}
+            style={{
+              marginLeft: "10px",
+              backgroundColor: "#ff4d4d",
+              color: "white",
+            }}
+          >
             Logout
           </button>
         </div>
@@ -124,12 +169,15 @@ const Dashboard = () => {
       {showForm && (
         <div
           style={{
-            border: "1px ",
+            border: "1px solid #ccc",
+            padding: "20px",
+            borderRadius: "8px",
+            marginBottom: "20px",
           }}
         >
           <h3>Create Deployment</h3>
           <form onSubmit={handleCreate}>
-            <div>
+            <div style={{ marginBottom: "10px" }}>
               <label>Name: </label>
               <input
                 type="text"
@@ -138,16 +186,17 @@ const Dashboard = () => {
                 required
               />
             </div>
-            <div>
+            <div style={{ marginBottom: "10px" }}>
               <label>Image: </label>
               <input
                 type="text"
                 value={image}
                 onChange={(e) => setImage(e.target.value)}
                 required
+                placeholder="e.g. nginx"
               />
             </div>
-            <div>
+            <div style={{ marginBottom: "10px" }}>
               <label>Replicas: </label>
               <input
                 type="number"
@@ -157,7 +206,7 @@ const Dashboard = () => {
                 required
               />
             </div>
-            <div>
+            <div style={{ marginBottom: "10px" }}>
               <label>Port: </label>
               <input
                 type="number"
@@ -166,39 +215,77 @@ const Dashboard = () => {
                 required
               />
             </div>
-            <button type="submit" style={{ marginTop: "10px" }}>
-              Deploy
+            <button
+              type="submit"
+              style={{
+                backgroundColor: "#4CAF50",
+                color: "white",
+                padding: "8px 16px",
+              }}
+            >
+              Deploy to Cluster
             </button>
           </form>
         </div>
       )}
 
       <div>
-        <h3>your Deployments</h3>
+        <h3>Your Active Deployments</h3>
         {deployments.length === 0 ? (
-          <p>No deployments found</p>
+          <p>No deployments found. Start by creating one!</p>
         ) : (
           deployments.map((dep) => (
             <div
               key={dep.name}
               style={{
-                border: "1px solid #eee",
-                padding: "10px",
+                border: "1px solid #ddd",
+                padding: "15px",
                 margin: "10px 0",
+                borderRadius: "5px",
+                backgroundColor: "#f9f9f9",
               }}
             >
-              <div>
-                <h4>{dep.name}</h4>
-                <p>
-                  <strong>Image:</strong> {dep.image} | <strong>Status:</strong>{" "}
-                  {dep.status}
-                </p>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <div>
+                  <h4 style={{ margin: "0 0 5px 0" }}>{dep.name}</h4>
+                  <p style={{ fontSize: "14px", color: "#666" }}>
+                    <strong>Image:</strong> {dep.image} |{" "}
+                    <strong>Current Status:</strong>{" "}
+                    <span
+                      style={{
+                        color: dep.status === "Running" ? "green" : "orange",
+                        fontWeight: "bold",
+                      }}
+                    >
+                      {dep.status}
+                    </span>
+                  </p>
+                </div>
+                <button
+                  onClick={() => handleDelete(dep.name)}
+                  style={{
+                    backgroundColor: "transparent",
+                    color: "red",
+                    border: "1px solid red",
+                    cursor: "pointer",
+                  }}
+                >
+                  Delete
+                </button>
               </div>
 
-              <div style={{ marginTop: "10px" }}>
+              <div
+                style={{
+                  marginTop: "15px",
+                  borderTop: "1px solid #eee",
+                  paddingTop: "10px",
+                }}
+              >
+                <label>Scale Replicas: </label>
                 <input
                   type="number"
                   min={1}
+                  style={{ width: "60px", marginRight: "10px" }}
                   value={replicaInputs[dep.name] ?? dep.replicas}
                   onChange={(e) =>
                     setReplicaInputs((prev) => ({
@@ -207,9 +294,21 @@ const Dashboard = () => {
                     }))
                   }
                 />
-                <span> replicas </span>
 
-                <button onClick={() => handleDelete(dep.name)}>Delete</button>
+                <button
+                  onClick={() => handleScale(dep.name)}
+                  style={{
+                    backgroundColor: "#008CBA",
+                    color: "white",
+                    marginRight: "10px",
+                  }}
+                >
+                  Update Scale
+                </button>
+
+                <span style={{ fontSize: "12px", color: "#888" }}>
+                  (Current: {dep.availableReplicas || 0} / {dep.replicas})
+                </span>
               </div>
             </div>
           ))

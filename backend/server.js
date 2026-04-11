@@ -4,8 +4,11 @@ const cors = require("cors");
 const { DB } = require("./controller/database");
 const authRoutes = require("./routes/authentication-route");
 const app = express();
+const { startController } = require("./controller/contoller");
 
-DB();
+DB().then(() => {
+  startController();
+});
 
 app.use(
   cors({

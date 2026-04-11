@@ -103,9 +103,37 @@ const getDeployments = async () => {
     return [];
   }
 };
+// SCALE DEPLOYMENT
+const scaleDeployment = async (name, replicas) => {
+  try {
+    const patch = {
+      spec: {
+        replicas: parseInt(replicas),
+      },
+    };
+
+    // The arguments are - name, namespace, body, pretty, dryRun, fieldManager, fieldValidation, headers
+    const response = await k8sAppsApi.patchNamespacedDeployment(
+      name,
+      NAMESPACE,
+      patch,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      { headers: { "Content-Type": "application/strategic-merge-patch+json" } },
+    );
+
+    return response.body;
+  } catch (err) {
+    console.error("K8s Scale Error:", err.response?.body || err.message);
+    throw err;
+  }
+};
 
 module.exports = {
   createDeployment,
   getDeployments,
   deleteDeployment,
+  scaleDeployment,
 };

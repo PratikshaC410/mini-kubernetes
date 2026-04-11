@@ -168,14 +168,23 @@ const create_deployment = async (req, res) => {
 const delete_deployment = async (req, res) => {
   try {
     const name = req.params.id;
+    const userId = req.userId; // Ensure you have this from middleware
 
     if (!name || name === "undefined") {
       return res.status(400).json({ msg: "Deployment name is required" });
     }
 
+    // 1. REMOVE FROM MONGODB (Update Desired State)
+    // We set status to 'deleted' so the Reconciler loop (find({status: "active"})) ignores it
+    await Deployment_db.findOneAndUpdate(
+      { name, createdBy: userId },
+      { status: "deleted" },
+    );
+
+    // 2. DELETE FROM KUBERNETES (Update Actual State)
     await deleteDeployment(name);
 
-    res.json({ msg: `Deployment ${name} deleted` });
+    res.json({ msg: `Deployment ${name} permanently removed` });
   } catch (err) {
     console.error("K8s Delete Error:", err.body || err.message);
     res.status(500).json({

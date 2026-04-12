@@ -38,7 +38,6 @@ const Dashboard = () => {
   useEffect(() => {
     if (token) {
       fetchDeployments();
-      // Set an interval to refresh status automatically every 10s
       const interval = setInterval(fetchDeployments, 10000);
       return () => clearInterval(interval);
     }
@@ -80,14 +79,15 @@ const Dashboard = () => {
     }
   };
 
-  // --- NEW SCALING FUNCTION ---
+  //handle scale
   const handleScale = async (depName) => {
     const newCount = replicaInputs[depName];
+    console.log("newcount :", newCount);
     if (!newCount) return;
 
     try {
       const res = await fetch(`${API}/api/auth/deployments/scale`, {
-        method: "PATCH", // Using PATCH for partial update
+        method: "PATCH",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
@@ -155,7 +155,7 @@ const Dashboard = () => {
             onClick={handleLogout}
             style={{
               marginLeft: "10px",
-              backgroundColor: "#ff4d4d",
+
               color: "white",
             }}
           >
@@ -218,7 +218,6 @@ const Dashboard = () => {
             <button
               type="submit"
               style={{
-                backgroundColor: "#4CAF50",
                 color: "white",
                 padding: "8px 16px",
               }}
@@ -295,20 +294,9 @@ const Dashboard = () => {
                   }
                 />
 
-                <button
-                  onClick={() => handleScale(dep.name)}
-                  style={{
-                    backgroundColor: "#008CBA",
-                    color: "white",
-                    marginRight: "10px",
-                  }}
-                >
+                <button onClick={() => handleScale(dep.name)}>
                   Update Scale
                 </button>
-
-                <span style={{ fontSize: "12px", color: "#888" }}>
-                  (Current: {dep.availableReplicas || 0} / {dep.replicas})
-                </span>
               </div>
             </div>
           ))

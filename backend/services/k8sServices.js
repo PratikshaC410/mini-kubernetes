@@ -1,5 +1,5 @@
 const k8s = require("@kubernetes/client-node");
-
+const { PatchUtils } = k8s;
 const kc = new k8s.KubeConfig();
 kc.loadFromDefault();
 
@@ -104,33 +104,39 @@ const getDeployments = async () => {
   }
 };
 // SCALE DEPLOYMENT
+
 const scaleDeployment = async (name, replicas) => {
   try {
+    const namespace = "default";
+
     const patch = {
       spec: {
-        replicas: parseInt(replicas),
+        replicas: Number(replicas),
       },
     };
 
-    // The arguments are - name, namespace, body, pretty, dryRun, fieldManager, fieldValidation, headers
-    const response = await k8sAppsApi.patchNamespacedDeployment(
+    const response = await k8sAppsApi.patchNamespacedDeploymentScale(
       name,
-      NAMESPACE,
+      namespace,
       patch,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      { headers: { "Content-Type": "application/strategic-merge-patch+json" } },
+      undefined, // pretty
+      undefined, // dryRun
+      undefined, // fieldManager
+      undefined, // fieldValidation
+      undefined, // options
+      PatchUtils.PATCH_FORMAT_MERGE_PATCH,
     );
 
     return response.body;
   } catch (err) {
-    console.error("K8s Scale Error:", err.response?.body || err.message);
+    console.error("K8s API Error Status:", err.response?.statusCode);
+    console.error(
+      "K8s API Error Message:",
+      err.response?.body?.message || err.message,
+    );
     throw err;
   }
 };
-
 module.exports = {
   createDeployment,
   getDeployments,

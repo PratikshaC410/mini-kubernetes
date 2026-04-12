@@ -168,14 +168,13 @@ const create_deployment = async (req, res) => {
 const delete_deployment = async (req, res) => {
   try {
     const name = req.params.id;
-    const userId = req.userId; // Ensure you have this from middleware
+    const userId = req.userId;
 
     if (!name || name === "undefined") {
       return res.status(400).json({ msg: "Deployment name is required" });
     }
 
     // 1. REMOVE FROM MONGODB (Update Desired State)
-    // We set status to 'deleted' so the Reconciler loop (find({status: "active"})) ignores it
     await Deployment_db.findOneAndUpdate(
       { name, createdBy: userId },
       { status: "deleted" },
@@ -225,16 +224,17 @@ const get_all_deployments = async (req, res) => {
     });
   }
 };
-
 const scale_deployment = async (req, res) => {
   try {
     const { name, replicas } = req.body;
     const userId = req.userId;
 
-    // UPDATE DESIRED STATE (MongoDB)
+    // Convert to Number
+    const replicaCount = parseInt(replicas);
+
     const updatedDb = await Deployment_db.findOneAndUpdate(
       { name, createdBy: userId },
-      { replicas: parseInt(replicas) },
+      { replicas: replicaCount },
       { new: true },
     );
 
@@ -244,15 +244,18 @@ const scale_deployment = async (req, res) => {
         .json({ msg: "Deployment not found in your records" });
     }
 
-    //  ACTIVATE ACTUAL STATE (K8s)
-    await scaleDeployment(name, replicas);
+    await scaleDeployment(name, replicaCount);
 
     res.json({
-      msg: `Scaling request for ${name} initiated`,
-      desiredReplicas: updatedDb.replicas,
+      msg: `Scaled ${name} to ${replicaCount}`,
+      deployment: updatedDb,
     });
   } catch (err) {
-    res.status(500).json({ msg: "Scaling failed", error: err.message });
+    console.error("Scale Error:", err.response?.body || err.message);
+    res.status(500).json({
+      msg: "Scaling failed",
+      error: err.response?.body?.message || err.message,
+    });
   }
 };
 module.exports = {

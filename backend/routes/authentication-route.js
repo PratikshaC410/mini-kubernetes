@@ -16,7 +16,7 @@ const authMiddleware = require("./authmiddleware");
 router.post("/deployments", authMiddleware, create_deployment);
 router.get("/deployments", authMiddleware, get_all_deployments);
 router.delete("/deployments/:id", authMiddleware, delete_deployment);
-router.patch("/scale", authMiddleware, scale_deployment);
+router.patch("/deployments/scale", authMiddleware, scale_deployment);
 router.post("/register", register);
 router.post("/verify", verifyotp);
 router.post("/login", login);

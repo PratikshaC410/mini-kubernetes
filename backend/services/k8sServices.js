@@ -1,7 +1,8 @@
 const k8s = require("@kubernetes/client-node");
-const { PatchUtils } = k8s;
+
 const kc = new k8s.KubeConfig();
 kc.loadFromDefault();
+const k8sApi = kc.makeApiClient(k8s.AppsV1Api);
 
 const k8sAppsApi = kc.makeApiClient(k8s.AppsV1Api);
 const NAMESPACE = "default";
@@ -109,31 +110,34 @@ const scaleDeployment = async (name, replicas) => {
   try {
     const namespace = "default";
 
-    const patch = {
-      spec: {
-        replicas: Number(replicas),
+    await kc.applyToRequest({
+      url: `/apis/apps/v1/namespaces/${namespace}/deployments/${name}/scale`,
+    });
+
+    const cluster = kc.getCurrentCluster();
+    const url = `${cluster.server}/apis/apps/v1/namespaces/${namespace}/deployments/${name}/scale`;
+
+    const res = await fetch(url, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/merge-patch+json",
       },
-    };
+      body: JSON.stringify({
+        spec: {
+          replicas: Number(replicas),
+        },
+      }),
+    });
 
-    const response = await k8sAppsApi.patchNamespacedDeploymentScale(
-      name,
-      namespace,
-      patch,
-      undefined, // pretty
-      undefined, // dryRun
-      undefined, // fieldManager
-      undefined, // fieldValidation
-      undefined, // options
-      PatchUtils.PATCH_FORMAT_MERGE_PATCH,
-    );
+    const data = await res.json();
 
-    return response.body;
+    if (!res.ok) {
+      throw new Error(data.message);
+    }
+
+    return data;
   } catch (err) {
-    console.error("K8s API Error Status:", err.response?.statusCode);
-    console.error(
-      "K8s API Error Message:",
-      err.response?.body?.message || err.message,
-    );
+    console.error("FINAL SCALE ERROR:", err.message);
     throw err;
   }
 };

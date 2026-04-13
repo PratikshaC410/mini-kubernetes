@@ -257,41 +257,42 @@ const scale_deployment = async (req, res) => {
       error: err.response?.body?.message || err.message,
     });
   }
-};
+}; // Import k8sApiLogs from your services file at the top
+const { getPodLogs, k8sApiLogs } = require("../services/k8sServices");
+
 const get_deployment_logs = async (req, res) => {
   try {
-    const { name } = req.params;
+    const { name } = req.params; // This is the deployment name from the URL
 
-    // Log this to your VS Code terminal so you can see what it's searching for
-    console.log("Fetching logs for deployment:", name);
-
-    // 1. Get the list of pods.
-    // IMPORTANT: Make sure you are using CoreV1Api here!
-    const podRes = await k8sApi.listNamespacedPod(
+    // 1. Find the pods belonging to this deployment using a label selector
+    // We use k8sApiLogs because listNamespacedPod is a CoreV1 operation
+    const podRes = await k8sApiLogs.listNamespacedPod(
       "default",
       undefined,
       undefined,
       undefined,
       undefined,
-      `app=${name}`, // Ensure this matches your deployment label
+      `app=${name}`, // Matches the label you set in createDeployment
     );
 
     const pods = podRes.body.items;
 
     if (!pods || pods.length === 0) {
-      console.log("No pods found for selector app=" + name);
-      return res.status(404).json({ msg: "No active pods found" });
+      return res
+        .status(404)
+        .json({ msg: "No active pods found for this deployment" });
     }
 
-    // 2. Use the ACTUAL pod name found by K8s
+    // 2. Get the name of the first pod found
     const podName = pods[0].metadata.name;
+
+    // 3. Fetch the actual logs using the function in your services file
     const logs = await getPodLogs(podName);
 
     res.json({ podName, logs });
   } catch (err) {
-    // This will print the ACTUAL error to your VS Code terminal
-    console.error("LOG FETCH ERROR:", err.response?.body || err.message);
-    res.status(500).json({ msg: "Internal Server Error", error: err.message });
+    console.error("Log Fetch Error:", err.message);
+    res.status(500).json({ msg: "Failed to fetch logs", error: err.message });
   }
 };
 module.exports = {

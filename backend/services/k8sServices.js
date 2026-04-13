@@ -159,4 +159,5 @@ module.exports = {
   deleteDeployment,
   scaleDeployment,
   getPodLogs,
+  k8sApiLogs,
 };

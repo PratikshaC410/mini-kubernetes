@@ -258,6 +258,42 @@ const scale_deployment = async (req, res) => {
     });
   }
 };
+const get_deployment_logs = async (req, res) => {
+  try {
+    const { name } = req.params;
+
+    // Log this to your VS Code terminal so you can see what it's searching for
+    console.log("Fetching logs for deployment:", name);
+
+    // 1. Get the list of pods.
+    // IMPORTANT: Make sure you are using CoreV1Api here!
+    const podRes = await k8sApi.listNamespacedPod(
+      "default",
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      `app=${name}`, // Ensure this matches your deployment label
+    );
+
+    const pods = podRes.body.items;
+
+    if (!pods || pods.length === 0) {
+      console.log("No pods found for selector app=" + name);
+      return res.status(404).json({ msg: "No active pods found" });
+    }
+
+    // 2. Use the ACTUAL pod name found by K8s
+    const podName = pods[0].metadata.name;
+    const logs = await getPodLogs(podName);
+
+    res.json({ podName, logs });
+  } catch (err) {
+    // This will print the ACTUAL error to your VS Code terminal
+    console.error("LOG FETCH ERROR:", err.response?.body || err.message);
+    res.status(500).json({ msg: "Internal Server Error", error: err.message });
+  }
+};
 module.exports = {
   register,
   verifyotp,
@@ -266,4 +302,5 @@ module.exports = {
   delete_deployment,
   get_all_deployments,
   scale_deployment,
+  get_deployment_logs,
 };

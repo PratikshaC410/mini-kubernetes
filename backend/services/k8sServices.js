@@ -3,7 +3,7 @@ const k8s = require("@kubernetes/client-node");
 const kc = new k8s.KubeConfig();
 kc.loadFromDefault();
 const k8sApi = kc.makeApiClient(k8s.AppsV1Api);
-
+const k8sApiLogs = kc.makeApiClient(k8s.CoreV1Api);
 const k8sAppsApi = kc.makeApiClient(k8s.AppsV1Api);
 const NAMESPACE = "default";
 
@@ -141,9 +141,22 @@ const scaleDeployment = async (name, replicas) => {
     throw err;
   }
 };
+// Fetch logs from a specific pod
+const getPodLogs = async (podName) => {
+  try {
+    const namespace = "default";
+    // .readNamespacedPodLog returns a plain text string of the logs
+    const response = await k8sApiLogs.readNamespacedPodLog(podName, namespace);
+    return response.body;
+  } catch (err) {
+    console.error("K8s Log Error:", err.response?.body || err.message);
+    throw err;
+  }
+};
 module.exports = {
   createDeployment,
   getDeployments,
   deleteDeployment,
   scaleDeployment,
+  getPodLogs,
 };

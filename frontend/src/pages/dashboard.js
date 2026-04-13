@@ -10,13 +10,15 @@ const Dashboard = () => {
   const navigate = useNavigate();
 
   const [deployments, setDeployments] = useState([]);
-  const [showForm, setShowForm] = useState(false);
   const [replicaInputs, setReplicaInputs] = useState({});
 
   const [name, setName] = useState("");
   const [image, setImage] = useState("");
   const [replicas, setReplicas] = useState(1);
   const [containerPort, setContainerPort] = useState("");
+
+  const [selectedLogs, setSelectedLogs] = useState(null);
+  const [isLogModalOpen, setIsLogModalOpen] = useState(false);
 
   const fetchDeployments = async () => {
     try {
@@ -27,10 +29,9 @@ const Dashboard = () => {
       if (res.ok) {
         setDeployments(data);
       } else {
-        toast.error(data.message || "Failed to fetch deployments");
+        toast.error(data.message || "Failed to fetch");
       }
     } catch (err) {
-      console.error(err);
       toast.error("Server error");
     }
   };
@@ -59,32 +60,22 @@ const Dashboard = () => {
           containerPort: Number(containerPort),
         }),
       });
-
-      const data = await res.json();
-
       if (res.ok) {
-        toast.success("Deployment created!");
+        toast.success("Created");
         setName("");
         setImage("");
         setReplicas(1);
         setContainerPort("");
-        setShowForm(false);
         fetchDeployments();
-      } else {
-        toast.error(data.message || "Failed to create deployment");
       }
     } catch (err) {
-      console.error(err);
-      toast.error("Error creating deployment");
+      toast.error("Error creating");
     }
   };
 
-  //handle scale
   const handleScale = async (depName) => {
     const newCount = replicaInputs[depName];
-    console.log("newcount :", newCount);
-    if (!newCount) return;
-
+    if (newCount === undefined) return;
     try {
       const res = await fetch(`${API}/api/auth/deployments/scale`, {
         method: "PATCH",
@@ -92,21 +83,13 @@ const Dashboard = () => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          name: depName,
-          replicas: Number(newCount),
-        }),
+        body: JSON.stringify({ name: depName, replicas: Number(newCount) }),
       });
-
       if (res.ok) {
-        toast.info(`Scaling ${depName} to ${newCount}...`);
+        toast.info("Scaling...");
         fetchDeployments();
-      } else {
-        const data = await res.json();
-        toast.error(data.message || "Scaling failed");
       }
     } catch (err) {
-      console.error(err);
       toast.error("Scaling error");
     }
   };
@@ -118,190 +101,193 @@ const Dashboard = () => {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
-
-      if (res.ok) {
-        toast.success("Deployment deleted");
-        fetchDeployments();
-      } else {
-        const data = await res.json();
-        toast.error(data.message || "Failed to delete");
-      }
+      if (res.ok) fetchDeployments();
     } catch (err) {
-      console.error(err);
-      toast.error("Server error");
+      toast.error("Delete error");
     }
   };
 
-  const handleLogout = () => {
-    logoutuser();
-    navigate("/");
+  const viewLogs = async (depName) => {
+    try {
+      const res = await fetch(`${API}/api/auth/deployments/logs/${depName}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSelectedLogs(data.logs);
+        setIsLogModalOpen(true);
+      }
+    } catch (err) {
+      toast.error("Log error");
+    }
   };
 
   return (
-    <div style={{ padding: "20px", maxWidth: "1200px", margin: "auto" }}>
+    <div style={{ padding: "20px" }}>
       <div
         style={{
           display: "flex",
           justifyContent: "space-between",
-          alignItems: "center",
+          marginBottom: "20px",
         }}
       >
         <h2>Kubernetes Dashboard</h2>
-        <div>
-          <button onClick={() => setShowForm(!showForm)}>
-            {showForm ? "Cancel" : "New Deployment"}
-          </button>
-          <button
-            onClick={handleLogout}
-            style={{
-              marginLeft: "10px",
+        <button
+          onClick={() => {
+            logoutuser();
+            navigate("/");
+          }}
+        >
+          Logout
+        </button>
+      </div>
 
-              color: "white",
-            }}
-          >
-            Logout
+      <div style={{ marginBottom: "30px" }}>
+        <form
+          onSubmit={handleCreate}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            maxWidth: "300px",
+          }}
+        >
+          <label style={{ marginBottom: "5px" }}>Deployment Name:</label>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            style={{ marginBottom: "15px" }}
+            required
+          />
+
+          <label style={{ marginBottom: "5px" }}>Container Image:</label>
+          <input
+            value={image}
+            onChange={(e) => setImage(e.target.value)}
+            style={{ marginBottom: "15px" }}
+            required
+          />
+
+          <label style={{ marginBottom: "5px" }}>Replicas:</label>
+          <input
+            type="number"
+            value={replicas}
+            onChange={(e) => setReplicas(e.target.value)}
+            style={{ marginBottom: "15px" }}
+            required
+          />
+
+          <label style={{ marginBottom: "5px" }}>Port:</label>
+          <input
+            value={containerPort}
+            onChange={(e) => setContainerPort(e.target.value)}
+            style={{ marginBottom: "15px" }}
+            required
+          />
+
+          <button type="submit" style={{ width: "fit-content" }}>
+            Deploy
           </button>
-        </div>
+        </form>
       </div>
 
       <hr />
-
-      {showForm && (
-        <div
-          style={{
-            border: "1px solid #ccc",
-            padding: "20px",
-            borderRadius: "8px",
-            marginBottom: "20px",
-          }}
-        >
-          <h3>Create Deployment</h3>
-          <form onSubmit={handleCreate}>
-            <div style={{ marginBottom: "10px" }}>
-              <label>Name: </label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-              />
-            </div>
-            <div style={{ marginBottom: "10px" }}>
-              <label>Image: </label>
-              <input
-                type="text"
-                value={image}
-                onChange={(e) => setImage(e.target.value)}
-                required
-                placeholder="e.g. nginx"
-              />
-            </div>
-            <div style={{ marginBottom: "10px" }}>
-              <label>Replicas: </label>
-              <input
-                type="number"
-                min={1}
-                value={replicas}
-                onChange={(e) => setReplicas(Number(e.target.value))}
-                required
-              />
-            </div>
-            <div style={{ marginBottom: "10px" }}>
-              <label>Port: </label>
-              <input
-                type="number"
-                value={containerPort}
-                onChange={(e) => setContainerPort(e.target.value)}
-                required
-              />
-            </div>
-            <button
-              type="submit"
-              style={{
-                color: "white",
-                padding: "8px 16px",
-              }}
-            >
-              Deploy to Cluster
-            </button>
-          </form>
-        </div>
-      )}
+      <h3>Your Active Deployments</h3>
 
       <div>
-        <h3>Your Active Deployments</h3>
-        {deployments.length === 0 ? (
-          <p>No deployments found. Start by creating one!</p>
-        ) : (
-          deployments.map((dep) => (
-            <div
-              key={dep.name}
-              style={{
-                border: "1px solid #ddd",
-                padding: "15px",
-                margin: "10px 0",
-                borderRadius: "5px",
-                backgroundColor: "#f9f9f9",
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <div>
-                  <h4 style={{ margin: "0 0 5px 0" }}>{dep.name}</h4>
-                  <p style={{ fontSize: "14px", color: "#666" }}>
-                    <strong>Image:</strong> {dep.image} |{" "}
-                    <strong>Current Status:</strong>{" "}
-                    <span
-                      style={{
-                        color: dep.status === "Running" ? "green" : "orange",
-                        fontWeight: "bold",
-                      }}
-                    >
-                      {dep.status}
-                    </span>
-                  </p>
-                </div>
+        {deployments.map((dep) => (
+          <div
+            key={dep.name}
+            style={{
+              border: "1px solid #ccc",
+              padding: "15px",
+              margin: "10px 0",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <div>
+                <strong>{dep.name}</strong>
+                <p style={{ margin: "5px 0" }}>
+                  Image: {dep.image} | Status: {dep.actualStatus || dep.status}
+                </p>
+                <p style={{ margin: "5px 0" }}>
+                  Pods: {dep.availableReplicas || 0} / {dep.replicas}
+                </p>
+              </div>
+              <div>
+                <button onClick={() => viewLogs(dep.name)}>View Logs</button>
                 <button
                   onClick={() => handleDelete(dep.name)}
-                  style={{
-                    backgroundColor: "transparent",
-                    color: "red",
-                    border: "1px solid red",
-                    cursor: "pointer",
-                  }}
+                  style={{ marginLeft: "10px" }}
                 >
                   Delete
                 </button>
               </div>
-
-              <div
-                style={{
-                  marginTop: "15px",
-                  borderTop: "1px solid #eee",
-                  paddingTop: "10px",
-                }}
-              >
-                <label>Scale Replicas: </label>
-                <input
-                  type="number"
-                  min={1}
-                  style={{ width: "60px", marginRight: "10px" }}
-                  value={replicaInputs[dep.name] ?? dep.replicas}
-                  onChange={(e) =>
-                    setReplicaInputs((prev) => ({
-                      ...prev,
-                      [dep.name]: e.target.value,
-                    }))
-                  }
-                />
-
-                <button onClick={() => handleScale(dep.name)}>
-                  Update Scale
-                </button>
-              </div>
             </div>
-          ))
-        )}
+
+            <div
+              style={{
+                marginTop: "15px",
+                paddingTop: "10px",
+                borderTop: "1px solid #eee",
+              }}
+            >
+              <label>Scale Replicas: </label>
+              <input
+                type="number"
+                min={1}
+                style={{ width: "50px", marginRight: "10px" }}
+                value={replicaInputs[dep.name] ?? dep.replicas}
+                onChange={(e) =>
+                  setReplicaInputs({
+                    ...replicaInputs,
+                    [dep.name]: e.target.value,
+                  })
+                }
+              />
+              <button onClick={() => handleScale(dep.name)}>
+                Update Scale
+              </button>
+            </div>
+          </div>
+        ))}
       </div>
+
+      {isLogModalOpen && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            backgroundColor: "rgba(0,0,0,0.5)",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: "white",
+              padding: "20px",
+              width: "80%",
+              height: "80%",
+              overflow: "auto",
+              border: "1px solid black",
+            }}
+          >
+            <button
+              onClick={() => setIsLogModalOpen(false)}
+              style={{ marginBottom: "10px" }}
+            >
+              Close Logs
+            </button>
+            <pre style={{ whiteSpace: "pre-wrap", fontFamily: "monospace" }}>
+              {selectedLogs || "Fetching logs..."}
+            </pre>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,4 +1,4 @@
-const { otpdb, userdb, Deployment_db } = require("./database");
+const { otpdb, userdb, Deployment_db, pod_db } = require("./database");
 require("dotenv").config();
 const bcrypt = require("bcryptjs");
 const nodemailer = require("nodemailer");
@@ -295,6 +295,30 @@ const get_deployment_logs = async (req, res) => {
     res.status(500).json({ msg: "Failed to fetch logs", error: err.message });
   }
 };
+
+const getActualPodStatus = async (req, res) => {
+  try {
+    // 1. Get the user ID from the JWT (provided by your auth middleware)
+    const userId = req.user.userId;
+
+    // 2. Find pods. We use .populate to check the 'createdBy' field in the Deployment
+    const pods = await pod_db
+      .find()
+      .populate({
+        path: "deploymentId",
+        match: { createdBy: userId }, // Filter: Only deployments owned by this user
+      })
+      .sort({ updatedAt: -1 });
+
+    // 3. Filter out pods where deploymentId became null due to the match filter
+    const userPods = pods.filter((pod) => pod.deploymentId !== null);
+
+    res.status(200).json(userPods);
+  } catch (error) {
+    console.error("Fetch Pods Error:", error);
+    res.status(500).json({ message: "Error fetching pod status" });
+  }
+};
 module.exports = {
   register,
   verifyotp,
@@ -304,4 +328,5 @@ module.exports = {
   get_all_deployments,
   scale_deployment,
   get_deployment_logs,
+  getActualPodStatus,
 };

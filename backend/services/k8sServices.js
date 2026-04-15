@@ -104,23 +104,24 @@ const getDeployments = async () => {
     return [];
   }
 };
-// SCALE DEPLOYMENT
-const scaleDeployment = async (name, replicas) => {
+/const scaleDeployment = async (name, replicas) => {
   try {
     const namespace = "default";
     const cluster = kc.getCurrentCluster();
-
-    // Replace localhost with 127.0.0.1 to bridge the WSL-Windows gap
-    const serverUrl = cluster.server.replace("localhost", "127.0.0.1");
+    const serverUrl = cluster.server.replace('localhost', '127.0.0.1');
     const url = `${serverUrl}/apis/apps/v1/namespaces/${namespace}/deployments/${name}/scale`;
 
+    // 1. Create an empty options object
     const opts = {};
-    await kc.applyToRequest(opts); // Injects the Bearer Token
+    
+    // 2. Let the K8s library inject the 'Authorization' header into 'opts'
+    await kc.applyToRequest(opts);
 
+    // 3. Perform the fetch, merging K8s headers with our Content-Type
     const res = await fetch(url, {
       method: "PATCH",
       headers: {
-        ...opts.headers,
+        ...opts.headers, // CRITICAL: This includes the Bearer token
         "Content-Type": "application/merge-patch+json",
       },
       body: JSON.stringify({
@@ -130,9 +131,7 @@ const scaleDeployment = async (name, replicas) => {
 
     if (!res.ok) {
       const errorData = await res.json();
-      throw new Error(
-        errorData.message || `K8s API responded with ${res.status}`,
-      );
+      throw new Error(errorData.message || `Status: ${res.status}`);
     }
 
     return await res.json();

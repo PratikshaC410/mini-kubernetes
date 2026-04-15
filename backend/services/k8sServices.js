@@ -1,5 +1,5 @@
 const k8s = require("@kubernetes/client-node");
-
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 const kc = new k8s.KubeConfig();
 kc.loadFromDefault();
 const k8sApi = kc.makeApiClient(k8s.AppsV1Api);
@@ -105,37 +105,37 @@ const getDeployments = async () => {
   }
 };
 // SCALE DEPLOYMENT
-
 const scaleDeployment = async (name, replicas) => {
   try {
     const namespace = "default";
-
-    await kc.applyToRequest({
-      url: `/apis/apps/v1/namespaces/${namespace}/deployments/${name}/scale`,
-    });
-
     const cluster = kc.getCurrentCluster();
-    const url = `${cluster.server}/apis/apps/v1/namespaces/${namespace}/deployments/${name}/scale`;
+
+    // Replace localhost with 127.0.0.1 to bridge the WSL-Windows gap
+    const serverUrl = cluster.server.replace("localhost", "127.0.0.1");
+    const url = `${serverUrl}/apis/apps/v1/namespaces/${namespace}/deployments/${name}/scale`;
+
+    const opts = {};
+    await kc.applyToRequest(opts); // Injects the Bearer Token
 
     const res = await fetch(url, {
       method: "PATCH",
       headers: {
+        ...opts.headers,
         "Content-Type": "application/merge-patch+json",
       },
       body: JSON.stringify({
-        spec: {
-          replicas: Number(replicas),
-        },
+        spec: { replicas: Number(replicas) },
       }),
     });
 
-    const data = await res.json();
-
     if (!res.ok) {
-      throw new Error(data.message);
+      const errorData = await res.json();
+      throw new Error(
+        errorData.message || `K8s API responded with ${res.status}`,
+      );
     }
 
-    return data;
+    return await res.json();
   } catch (err) {
     console.error("FINAL SCALE ERROR:", err.message);
     throw err;

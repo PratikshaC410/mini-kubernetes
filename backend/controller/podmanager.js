@@ -47,7 +47,7 @@ const syncPodHealth = async () => {
     const activeUids = pods.map((p) => p.metadata.uid);
     await pod_db.deleteMany({ containerId: { $nin: activeUids } });
 
-    console.log(`[POD MANAGER] Successfully synced ${pods.length} containers.`);
+    console.log(`Successfully synced ${pods.length} containers.`);
   } catch (err) {
     console.error("Pod Manager Sync Error:", err.message);
   }

@@ -4,53 +4,98 @@ const {
   getDeployments,
   createDeployment,
   scaleDeployment,
+  deleteDeployment, // Ensure this is exported from k8sServices.js
 } = require("../services/k8sServices");
 
+/**
+ * The Reconciliation Loop
+ * Ensures the 'Actual State' (Kubernetes) matches the 'Desired State' (MongoDB)
+ */
 const reconcile = async () => {
   try {
     console.log("--- Starting Reconciliation Loop ---");
 
-    // POD MANAGER := Sync actual container health to MongoDB
-
+    // 1. POD MANAGER: Sync actual container health to MongoDB
+    // (Ensures your DB knows which pods are actually running)
     await syncPodHealth();
 
-    //  CONTROLLER JOB:= Compare Desired vs Actual at Deployment level
+    // 2. FETCH STATES
+    // Get desired state from DB (only active deployments)
     const desiredStates = await Deployment_db.find({ status: "active" });
+    // Get actual state from Kubernetes
     const actualStates = await getDeployments();
 
+    // 3. SYNC: DB -> KUBERNETES (Create or Scale)
     for (const desired of desiredStates) {
       const actual = actualStates.find((a) => a.name === desired.name);
 
-      // If it exists in DB but not in K8s
+      // If it exists in DB but not in K8s: CREATE
       if (!actual) {
         console.log(
           `[RECONCILE] Missing Deployment: ${desired.name}. Recreating...`,
         );
-        await createDeployment({
-          name: desired.name,
-          image: desired.image,
-          replicas: desired.replicas,
-          containerPort: desired.containerPort,
-        });
+        try {
+          await createDeployment({
+            name: desired.name,
+            image: desired.image,
+            replicas: desired.replicas,
+            containerPort: desired.containerPort,
+          });
+        } catch (err) {
+          console.error(
+            `[RECONCILE] Create Failed for ${desired.name}:`,
+            err.message,
+          );
+        }
         continue;
       }
 
-      // If replicas are not matching
-      if (desired.replicas !== actual.replicas) {
+      // If replicas are not matching: SCALE
+      if (Number(desired.replicas) !== Number(actual.replicas)) {
         console.log(
           `[RECONCILE] Replica Mismatch for ${desired.name}. Scaling ${actual.replicas} -> ${desired.replicas}`,
         );
-        await scaleDeployment(desired.name, desired.replicas);
+        try {
+          await scaleDeployment(desired.name, desired.replicas);
+        } catch (err) {
+          console.error(
+            `[RECONCILE] Scale Failed for ${desired.name}:`,
+            err.message,
+          );
+        }
+      }
+    }
+
+    // 4. SYNC: KUBERNETES -> DB (Cleanup/Delete)
+    // If it exists in K8s but NOT in our DB: DELETE
+    for (const actual of actualStates) {
+      const stillDesired = desiredStates.find((d) => d.name === actual.name);
+
+      if (!stillDesired) {
+        console.log(
+          `[RECONCILE] Orphaned Deployment found: ${actual.name}. Deleting from K8s...`,
+        );
+        try {
+          await deleteDeployment(actual.name);
+          console.log(`[RECONCILE] Successfully deleted ${actual.name}`);
+        } catch (err) {
+          console.error(
+            `[RECONCILE] Delete Failed for ${actual.name}:`,
+            err.message,
+          );
+        }
       }
     }
 
     console.log("--- Reconciliation Complete ---");
   } catch (err) {
-    console.error("Reconciliation Loop Error:", err.message);
+    console.error("Reconciliation Loop Global Error:", err.message);
   }
 };
 
 const startController = () => {
+  reconcile();
+
   setInterval(reconcile, 10000);
 };
 

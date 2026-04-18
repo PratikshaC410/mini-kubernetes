@@ -10,18 +10,18 @@ const reconcile = async () => {
   try {
     console.log("--- Starting Reconciliation Loop ---");
 
-    // POD MANAGER JOB: Sync actual container health to MongoDB (pod_db)
+    // POD MANAGER := Sync actual container health to MongoDB
 
     await syncPodHealth();
 
-    // 2. CONTROLLER JOB: Compare Desired vs Actual at Deployment level
+    //  CONTROLLER JOB:= Compare Desired vs Actual at Deployment level
     const desiredStates = await Deployment_db.find({ status: "active" });
     const actualStates = await getDeployments();
 
     for (const desired of desiredStates) {
       const actual = actualStates.find((a) => a.name === desired.name);
 
-      // If it exists in DB but not in K8s (Self-Healing)
+      // If it exists in DB but not in K8s
       if (!actual) {
         console.log(
           `[RECONCILE] Missing Deployment: ${desired.name}. Recreating...`,
@@ -35,7 +35,7 @@ const reconcile = async () => {
         continue;
       }
 
-      // If replicas are not matching (Scaling)
+      // If replicas are not matching
       if (desired.replicas !== actual.replicas) {
         console.log(
           `[RECONCILE] Replica Mismatch for ${desired.name}. Scaling ${actual.replicas} -> ${desired.replicas}`,

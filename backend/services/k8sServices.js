@@ -104,16 +104,16 @@ const getDeployments = async () => {
     return [];
   }
 };
-/const scaleDeployment = async (name, replicas) => {
+const scaleDeployment = async (name, replicas) => {
   try {
     const namespace = "default";
     const cluster = kc.getCurrentCluster();
-    const serverUrl = cluster.server.replace('localhost', '127.0.0.1');
+    const serverUrl = cluster.server.replace("localhost", "127.0.0.1");
     const url = `${serverUrl}/apis/apps/v1/namespaces/${namespace}/deployments/${name}/scale`;
 
     // 1. Create an empty options object
     const opts = {};
-    
+
     // 2. Let the K8s library inject the 'Authorization' header into 'opts'
     await kc.applyToRequest(opts);
 
@@ -121,7 +121,7 @@ const getDeployments = async () => {
     const res = await fetch(url, {
       method: "PATCH",
       headers: {
-        ...opts.headers, // CRITICAL: This includes the Bearer token
+        ...opts.headers, //   This includes the Bearer token
         "Content-Type": "application/merge-patch+json",
       },
       body: JSON.stringify({

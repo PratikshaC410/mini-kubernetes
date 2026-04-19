@@ -9,7 +9,6 @@ const Dashboard = () => {
   const { token, logoutuser } = useAuth();
   const navigate = useNavigate();
 
-  // State Management
   const [deployments, setDeployments] = useState([]);
   const [pods, setPods] = useState([]);
   const [replicaInputs, setReplicaInputs] = useState({});
@@ -21,8 +20,6 @@ const Dashboard = () => {
 
   const [selectedLogs, setSelectedLogs] = useState(null);
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
-
-  // --- FETCHING LOGIC ---
 
   const fetchDeployments = async () => {
     try {
@@ -59,12 +56,10 @@ const Dashboard = () => {
       const interval = setInterval(() => {
         fetchDeployments();
         fetchPods();
-      }, 10000); // 10s sync
+      }, 10000);
       return () => clearInterval(interval);
     }
   }, [token]);
-
-  // --- HANDLERS ---
 
   const handleCreate = async (e) => {
     e.preventDefault();
@@ -108,7 +103,7 @@ const Dashboard = () => {
         body: JSON.stringify({ name: depName, replicas: Number(newCount) }),
       });
       if (res.ok) {
-        toast.info("Scaling request sent");
+        toast.info("Scaling ");
         fetchDeployments();
       }
     } catch (err) {
@@ -117,7 +112,6 @@ const Dashboard = () => {
   };
 
   const handleDelete = async (depName) => {
-    if (!window.confirm(`Delete ${depName}?`)) return;
     try {
       const res = await fetch(`${API}/api/auth/deployments/${depName}`, {
         method: "DELETE",
@@ -169,7 +163,6 @@ const Dashboard = () => {
         </button>
       </div>
 
-      {/* Deployment Form */}
       <div
         style={{
           marginBottom: "40px",
@@ -188,27 +181,27 @@ const Dashboard = () => {
             maxWidth: "500px",
           }}
         >
+          <label>Deployment Name </label>
           <input
-            placeholder="Name"
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
           />
+          <label>Image </label>
           <input
-            placeholder="Image"
             value={image}
             onChange={(e) => setImage(e.target.value)}
             required
           />
+          <label>Replicas </label>
           <input
             type="number"
-            placeholder="Replicas"
             value={replicas}
             onChange={(e) => setReplicas(e.target.value)}
             required
           />
+          <label>Port number</label>
           <input
-            placeholder="Port"
             value={containerPort}
             onChange={(e) => setContainerPort(e.target.value)}
             required
@@ -257,10 +250,9 @@ const Dashboard = () => {
             </div>
           </div>
 
-          {/* NESTED POD TABLE */}
           <div style={{ marginTop: "20px" }}>
             <h5 style={{ marginBottom: "10px", color: "#666" }}>
-              Live Containers (Synced via Pod Manager)
+              Info about runnig pods
             </h5>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
@@ -285,16 +277,7 @@ const Dashboard = () => {
                         <td style={{ padding: "8px" }}>
                           {pod.podName || pod.containerId.substring(0, 10)}
                         </td>
-                        <td
-                          style={{
-                            padding: "8px",
-                            fontWeight: "bold",
-                            color:
-                              pod.status === "running" ? "green" : "orange",
-                          }}
-                        >
-                          {pod.status.toUpperCase()}
-                        </td>
+                        <td>{pod.status.toUpperCase()}</td>
                         <td style={{ padding: "8px" }}>{pod.restartCount}</td>
                       </tr>
                     ))
@@ -308,7 +291,7 @@ const Dashboard = () => {
                         color: "#999",
                       }}
                     >
-                      Syncing actual state...
+                      Fetching actual running pods from k8s..
                     </td>
                   </tr>
                 )}
@@ -335,12 +318,11 @@ const Dashboard = () => {
               }
               style={{ width: "50px" }}
             />
-            <button onClick={() => handleScale(dep.name)}>Confirm Scale</button>
+            <button onClick={() => handleScale(dep.name)}> Scale</button>
           </div>
         </div>
       ))}
 
-      {/* Log Modal */}
       {isLogModalOpen && (
         <div
           style={{

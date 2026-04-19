@@ -78,7 +78,7 @@ const Dashboard = () => {
         }),
       });
       if (res.ok) {
-        toast.success("Deployment Created");
+        toast("Deployment Created");
         setName("");
         setImage("");
         setReplicas(1);
@@ -103,11 +103,11 @@ const Dashboard = () => {
         body: JSON.stringify({ name: depName, replicas: Number(newCount) }),
       });
       if (res.ok) {
-        toast.info("Scaling ");
+        toast("Scaling ");
         fetchDeployments();
       }
     } catch (err) {
-      toast.error("Scale error");
+      toast("Scale error");
     }
   };
 
@@ -120,7 +120,7 @@ const Dashboard = () => {
       if (res.ok) fetchDeployments();
       toast("Deployment deleted!!");
     } catch (err) {
-      toast.error("Delete error");
+      toast("Delete error");
     }
   };
 
@@ -135,7 +135,7 @@ const Dashboard = () => {
         setIsLogModalOpen(true);
       }
     } catch (err) {
-      toast.error("Log error");
+      toast("Log error");
     }
   };
 

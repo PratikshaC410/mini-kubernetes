@@ -4,7 +4,7 @@ const {
   getDeployments,
   createDeployment,
   scaleDeployment,
-  deleteDeployment, // Ensure this is exported from k8sServices.js
+  deleteDeployment,
 } = require("../services/k8sServices");
 
 /**
@@ -15,17 +15,16 @@ const reconcile = async () => {
   try {
     console.log("--- Starting Reconciliation Loop ---");
 
-    // 1. POD MANAGER: Sync actual container health to MongoDB
+    //  POD MANAGER: Sync actual container health to MongoDB
     // (Ensures your DB knows which pods are actually running)
     await syncPodHealth();
 
-    // 2. FETCH STATES
     // Get desired state from DB (only active deployments)
     const desiredStates = await Deployment_db.find({ status: "active" });
     // Get actual state from Kubernetes
     const actualStates = await getDeployments();
 
-    // 3. SYNC: DB -> KUBERNETES (Create or Scale)
+    //  SYNC: DB -> KUBERNETES (Create or Scale)
     for (const desired of desiredStates) {
       const actual = actualStates.find((a) => a.name === desired.name);
 
@@ -66,7 +65,7 @@ const reconcile = async () => {
       }
     }
 
-    // 4. SYNC: KUBERNETES -> DB (Cleanup/Delete)
+    //  KUBERNETES -> DB (Cleanup/Delete)
     // If it exists in K8s but NOT in our DB: DELETE
     for (const actual of actualStates) {
       const stillDesired = desiredStates.find((d) => d.name === actual.name);

@@ -112,13 +112,13 @@ const scaleDeployment = async (name, replicas) => {
     const serverUrl = cluster.server.replace("localhost", "127.0.0.1");
     const url = `${serverUrl}/apis/apps/v1/namespaces/${namespace}/deployments/${name}/scale`;
 
-    // 1. Create an empty options object
+    // Create an empty options object
     const opts = {};
 
-    // 2. Let the K8s library inject the 'Authorization' header into 'opts'
+    //   the K8s library puts the 'Authorization' header into 'opts'
     await kc.applyToRequest(opts);
 
-    // 3. Perform the fetch, merging K8s headers with our Content-Type
+    //   fetching, merging K8s headers with our Content-Type
     const res = await fetch(url, {
       method: "PATCH",
       headers: {

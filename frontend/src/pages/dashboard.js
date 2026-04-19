@@ -118,6 +118,7 @@ const Dashboard = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) fetchDeployments();
+      toast("Deployment deleted!!");
     } catch (err) {
       toast.error("Delete error");
     }
@@ -340,7 +341,7 @@ const Dashboard = () => {
           <div
             style={{
               backgroundColor: "#1e1e1e",
-              color: "#00ff00",
+              color: "white",
               padding: "20px",
               width: "80%",
               height: "80%",
@@ -349,7 +350,11 @@ const Dashboard = () => {
           >
             <button
               onClick={() => setIsLogModalOpen(false)}
-              style={{ color: "white", marginBottom: "10px" }}
+              style={{
+                color: "white",
+                marginBottom: "10px",
+                backgroundColor: "black",
+              }}
             >
               Close Logs
             </button>

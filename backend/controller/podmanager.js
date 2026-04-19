@@ -14,7 +14,7 @@ const syncPodHealth = async () => {
       //  Find the Deployment in MongoDB using the label
       const parentDeployment = await Deployment_db.findOne({ name: appLabel });
 
-      //  Only sync if the pod belongs to a deployment we manage
+      //  Only sync if the pod belongs to a deployment we created
       if (parentDeployment) {
         const containerStatus = pod.status.containerStatuses?.[0];
 
@@ -39,7 +39,6 @@ const syncPodHealth = async () => {
           },
         );
       } else {
-        // Debugging log: if your table is empty, see what this says
         console.log(
           `[POD MANAGER] No DB match found for pod label: ${appLabel}`,
         );
@@ -52,7 +51,7 @@ const syncPodHealth = async () => {
     const activeUids = pods.map((p) => p.metadata.uid);
     await pod_db.deleteMany({ containerId: { $nin: activeUids } });
 
-    console.log(`Successfully synced ${pods.length} containers.`);
+    // console.log(`Successfully synced ${pods.length} containers.`);
   } catch (err) {
     console.error("Pod Manager Sync Error:", err.message);
   }

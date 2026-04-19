@@ -296,7 +296,7 @@ const get_deployment_logs = async (req, res) => {
 const get_all_pods = async (req, res) => {
   try {
     const userId = req.userId;
-    console.log("Fetching pods for user:", userId);
+    // console.log("Fetching pods for user:", userId);
 
     // Fetch all pods from the pod_db
     const allPods = await pod_db.find({});

@@ -270,21 +270,21 @@ const get_deployment_logs = async (req, res) => {
       undefined,
       undefined,
       undefined,
-      `app=${name}`, // matches the label  set in createDeployment
+      `app=${name}`, // matches the label  tht is set in createDeployment
     );
 
     const pods = podRes.body.items;
-
+    console.log(pods);
     if (!pods || pods.length === 0) {
       return res
         .status(404)
         .json({ msg: "No active pods found for this deployment" });
     }
 
-    // 2. Get the name of the first pod found
+    //  Get the name of the first pod found
     const podName = pods[0].metadata.name;
 
-    // 3. Fetch the actual logs using the function in your services file
+    // Fetch the actual logs using the function in your services file
     const logs = await getPodLogs(podName);
 
     res.json({ podName, logs });

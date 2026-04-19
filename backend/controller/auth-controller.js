@@ -295,6 +295,33 @@ const get_deployment_logs = async (req, res) => {
     res.status(500).json({ msg: "Failed to fetch logs", error: err.message });
   }
 };
+const get_all_pods = async (req, res) => {
+  try {
+    const userId = req.userId;
+    console.log("Fetching pods for user:", userId);
+
+    // Fetch all pods from the pod_db
+    const allPods = await pod_db.find({});
+
+    // Fetch all deployments belonging to this user
+    const userDeployments = await Deployment_db.find({ createdBy: userId });
+    const userDeploymentIds = userDeployments.map((d) => d._id.toString());
+
+    // Filter pods that belong to the user's deployments
+    const filteredPods = allPods.filter(
+      (pod) =>
+        pod.deploymentId &&
+        userDeploymentIds.includes(pod.deploymentId.toString()),
+    );
+
+    res.status(200).json(filteredPods);
+  } catch (err) {
+    console.error("GET_ALL_PODS ERROR:", err);
+    res
+      .status(500)
+      .json({ msg: "Server Error fetching pods", error: err.message });
+  }
+};
 
 module.exports = {
   register,
@@ -305,4 +332,5 @@ module.exports = {
   get_all_deployments,
   scale_deployment,
   get_deployment_logs,
+  get_all_pods,
 };

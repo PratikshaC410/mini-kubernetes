@@ -11,14 +11,18 @@ const Dashboard = () => {
 
   // State Management
   const [deployments, setDeployments] = useState([]);
-
+  const [pods, setPods] = useState([]);
   const [replicaInputs, setReplicaInputs] = useState({});
+
   const [name, setName] = useState("");
   const [image, setImage] = useState("");
   const [replicas, setReplicas] = useState(1);
   const [containerPort, setContainerPort] = useState("");
+
   const [selectedLogs, setSelectedLogs] = useState(null);
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
+
+  // --- FETCHING LOGIC ---
 
   const fetchDeployments = async () => {
     try {
@@ -26,11 +30,41 @@ const Dashboard = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      if (res.ok) setDeployments(data);
+      if (res.ok) {
+        setDeployments(data);
+      }
     } catch (err) {
-      toast.error("Error fetching deployments");
+      toast.error("Failed to fetch deployments");
     }
   };
+
+  const fetchPods = async () => {
+    try {
+      const res = await fetch(`${API}/api/auth/pods`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setPods(data);
+      }
+    } catch (err) {
+      console.error("Error fetching pods", err);
+    }
+  };
+
+  useEffect(() => {
+    if (token) {
+      fetchDeployments();
+      fetchPods();
+      const interval = setInterval(() => {
+        fetchDeployments();
+        fetchPods();
+      }, 10000); // 10s sync
+      return () => clearInterval(interval);
+    }
+  }, [token]);
+
+  // --- HANDLERS ---
 
   const handleCreate = async (e) => {
     e.preventDefault();
@@ -49,7 +83,7 @@ const Dashboard = () => {
         }),
       });
       if (res.ok) {
-        toast.success("Deployment Triggered");
+        toast.success("Deployment Created");
         setName("");
         setImage("");
         setReplicas(1);
@@ -63,6 +97,7 @@ const Dashboard = () => {
 
   const handleScale = async (depName) => {
     const newCount = replicaInputs[depName];
+    if (newCount === undefined) return;
     try {
       const res = await fetch(`${API}/api/auth/deployments/scale`, {
         method: "PATCH",
@@ -72,31 +107,23 @@ const Dashboard = () => {
         },
         body: JSON.stringify({ name: depName, replicas: Number(newCount) }),
       });
-
-      const data = await res.json();
-
       if (res.ok) {
         toast.info("Scaling request sent");
         fetchDeployments();
-      } else {
-        toast.error(`Error: ${data.error || data.msg}`);
       }
     } catch (err) {
-      toast.error("Network error connecting to backend");
+      toast.error("Scale error");
     }
   };
 
   const handleDelete = async (depName) => {
-    if (!window.confirm(`Are you sure you want to delete ${depName}?`)) return;
+    if (!window.confirm(`Delete ${depName}?`)) return;
     try {
       const res = await fetch(`${API}/api/auth/deployments/${depName}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok) {
-        toast.warning("Deployment marked for deletion");
-        fetchDeployments();
-      }
+      if (res.ok) fetchDeployments();
     } catch (err) {
       toast.error("Delete error");
     }
@@ -113,124 +140,101 @@ const Dashboard = () => {
         setIsLogModalOpen(true);
       }
     } catch (err) {
-      toast.error("Could not fetch logs");
+      toast.error("Log error");
     }
   };
 
   return (
     <div
-      style={{
-        padding: "30px",
-
-        minHeight: "100vh",
-      }}
+      style={{ padding: "30px", backgroundColor: "#fff", minHeight: "100vh" }}
     >
       <div
         style={{
           display: "flex",
           justifyContent: "space-between",
           marginBottom: "30px",
-          borderBottom: "2px solid #333",
+          borderBottom: "1px solid #ddd",
           paddingBottom: "10px",
         }}
       >
+        <h2>Mini-Kubernetes Dashboard</h2>
         <button
           onClick={() => {
             logoutuser();
             navigate("/");
           }}
-          style={{ padding: "10px 20px", cursor: "pointer" }}
+          style={{ padding: "8px 16px" }}
         >
           Logout
         </button>
       </div>
 
+      {/* Deployment Form */}
       <div
         style={{
-          padding: "20px",
-          borderRadius: "8px",
           marginBottom: "40px",
+          padding: "20px",
+          border: "1px solid #eee",
+          borderRadius: "8px",
         }}
       >
         <h3>Deploy New Application</h3>
-        <form onSubmit={handleCreate}>
-          <div>
-            <label>Name:</label>
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              style={{ width: "100%", padding: "8px" }}
-              required
-            />
-          </div>
-          <div>
-            <label>Image:</label>
-            <input
-              value={image}
-              onChange={(e) => setImage(e.target.value)}
-              style={{ width: "100%", padding: "8px" }}
-              required
-            />
-          </div>
-          <div>
-            <label>Replicas:</label>
-            <input
-              type="number"
-              value={replicas}
-              onChange={(e) => setReplicas(e.target.value)}
-              style={{ width: "100%", padding: "8px" }}
-              required
-            />
-          </div>
-          <div>
-            <label>Port:</label>
-            <input
-              value={containerPort}
-              onChange={(e) => setContainerPort(e.target.value)}
-              style={{ width: "100%", padding: "8px" }}
-              required
-            />
-          </div>
-          <button
-            type="submit"
-            style={{
-              padding: "10px",
-
-              borderRadius: "4px",
-              cursor: "pointer",
-            }}
-          >
+        <form
+          onSubmit={handleCreate}
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: "10px",
+            maxWidth: "500px",
+          }}
+        >
+          <input
+            placeholder="Name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+          />
+          <input
+            placeholder="Image"
+            value={image}
+            onChange={(e) => setImage(e.target.value)}
+            required
+          />
+          <input
+            type="number"
+            placeholder="Replicas"
+            value={replicas}
+            onChange={(e) => setReplicas(e.target.value)}
+            required
+          />
+          <input
+            placeholder="Port"
+            value={containerPort}
+            onChange={(e) => setContainerPort(e.target.value)}
+            required
+          />
+          <button type="submit" style={{ gridColumn: "span 2" }}>
             Deploy
           </button>
         </form>
       </div>
 
-      <h3>Active Deployments </h3>
+      <h3>Active Deployments & Actual State</h3>
       {deployments.map((dep) => (
         <div
           key={dep._id}
           style={{
-            borderRadius: "8px",
+            border: "1px solid #ccc",
             padding: "20px",
             marginBottom: "20px",
+            borderRadius: "8px",
           }}
         >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "flex-start",
-            }}
-          >
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
             <div>
-              <h4 style={{ margin: "0 0 10px 0", color: "#333" }}>
-                {dep.name}
-              </h4>
+              <strong>{dep.name}</strong>
               <p style={{ margin: "5px 0" }}>
-                Image: <code>{dep.image}</code>
-              </p>
-              <p style={{ margin: "5px 0" }}>
-                Desired Replicas: <strong>{dep.replicas}</strong>
+                Image: {dep.image} | Desired: {dep.replicas}
               </p>
             </div>
             <div>
@@ -243,11 +247,9 @@ const Dashboard = () => {
               <button
                 onClick={() => handleDelete(dep.name)}
                 style={{
-                  backgroundColor: "#dc3545",
-                  color: "white",
+                  backgroundColor: "#ff4d4d",
+                  color: "#fff",
                   border: "none",
-                  padding: "5px 10px",
-                  borderRadius: "4px",
                 }}
               >
                 Delete
@@ -255,20 +257,75 @@ const Dashboard = () => {
             </div>
           </div>
 
+          {/* NESTED POD TABLE */}
+          <div style={{ marginTop: "20px" }}>
+            <h5 style={{ marginBottom: "10px", color: "#666" }}>
+              Live Containers (Synced via Pod Manager)
+            </h5>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr
+                  style={{ textAlign: "left", borderBottom: "1px solid #eee" }}
+                >
+                  <th style={{ padding: "8px" }}>Pod Name</th>
+                  <th style={{ padding: "8px" }}>Status</th>
+                  <th style={{ padding: "8px" }}>Restarts</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pods.filter((p) => String(p.deploymentId) === String(dep._id))
+                  .length > 0 ? (
+                  pods
+                    .filter((p) => String(p.deploymentId) === String(dep._id))
+                    .map((pod) => (
+                      <tr
+                        key={pod.containerId}
+                        style={{ borderBottom: "1px solid #f9f9f9" }}
+                      >
+                        <td style={{ padding: "8px" }}>
+                          {pod.podName || pod.containerId.substring(0, 10)}
+                        </td>
+                        <td
+                          style={{
+                            padding: "8px",
+                            fontWeight: "bold",
+                            color:
+                              pod.status === "running" ? "green" : "orange",
+                          }}
+                        >
+                          {pod.status.toUpperCase()}
+                        </td>
+                        <td style={{ padding: "8px" }}>{pod.restartCount}</td>
+                      </tr>
+                    ))
+                ) : (
+                  <tr>
+                    <td
+                      colSpan="3"
+                      style={{
+                        padding: "10px",
+                        textAlign: "center",
+                        color: "#999",
+                      }}
+                    >
+                      Syncing actual state...
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
           <div
             style={{
-              marginTop: "20px",
-              borderTop: "1px solid #f1f1f1",
-              paddingTop: "15px",
+              marginTop: "15px",
+              paddingTop: "10px",
+              borderTop: "1px solid #eee",
             }}
           >
-            <label style={{ fontSize: "14px", marginRight: "10px" }}>
-              Update Desired Replicas:
-            </label>
+            <label>Update Scale: </label>
             <input
               type="number"
-              min={1}
-              style={{ width: "50px", marginRight: "10px" }}
               value={replicaInputs[dep.name] ?? dep.replicas}
               onChange={(e) =>
                 setReplicaInputs({
@@ -276,12 +333,14 @@ const Dashboard = () => {
                   [dep.name]: e.target.value,
                 })
               }
+              style={{ width: "50px" }}
             />
             <button onClick={() => handleScale(dep.name)}>Confirm Scale</button>
           </div>
         </div>
       ))}
 
+      {/* Log Modal */}
       {isLogModalOpen && (
         <div
           style={{
@@ -294,53 +353,26 @@ const Dashboard = () => {
             display: "flex",
             justifyContent: "center",
             alignItems: "center",
-            zIndex: 1000,
           }}
         >
           <div
             style={{
               backgroundColor: "#1e1e1e",
-              color: "#fff",
+              color: "#00ff00",
               padding: "20px",
-              width: "90%",
+              width: "80%",
               height: "80%",
-              borderRadius: "8px",
-              overflow: "hidden",
-              display: "flex",
-              flexDirection: "column",
+              overflow: "auto",
             }}
           >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                marginBottom: "10px",
-              }}
+            <button
+              onClick={() => setIsLogModalOpen(false)}
+              style={{ color: "white", marginBottom: "10px" }}
             >
-              <h4> Logs</h4>
-              <button
-                onClick={() => setIsLogModalOpen(false)}
-                style={{
-                  background: "none",
-                  color: "white",
-                  border: "1px solid white",
-                  cursor: "pointer",
-                }}
-              >
-                Close
-              </button>
-            </div>
-            <pre
-              style={{
-                flex: 1,
-                overflow: "auto",
-
-                padding: "15px",
-                borderRadius: "4px",
-                fontSize: "13px",
-              }}
-            >
-              {selectedLogs || "Looking for logs..."}
+              Close Logs
+            </button>
+            <pre style={{ whiteSpace: "pre-wrap", fontFamily: "monospace" }}>
+              {selectedLogs || "Scanning..."}
             </pre>
           </div>
         </div>

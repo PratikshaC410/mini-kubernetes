@@ -38,6 +38,11 @@ const syncPodHealth = async () => {
             returnDocument: "after", // Fixes Mongoose deprecation warning
           },
         );
+      } else {
+        // Debugging log: if your table is empty, see what this says
+        console.log(
+          `[POD MANAGER] No DB match found for pod label: ${appLabel}`,
+        );
       }
     });
     //execute everything

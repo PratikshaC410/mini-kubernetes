@@ -2,7 +2,7 @@ const { otpdb, userdb, Deployment_db, pod_db } = require("./database");
 require("dotenv").config();
 const bcrypt = require("bcryptjs");
 const nodemailer = require("nodemailer");
-
+const { getPodLogs, k8sApiLogs } = require("../services/k8sServices");
 const {
   createDeployment,
   deleteDeployment,
@@ -123,7 +123,7 @@ const login = async (req, res) => {
   }
 };
 
-// CREATE
+// Create deployment
 
 const create_deployment = async (req, res) => {
   try {
@@ -134,7 +134,7 @@ const create_deployment = async (req, res) => {
     const uniqueName = `${safeName}-${Date.now()}`;
 
     // saving to mongodb the desired state
-    //job of your API Server
+
     const desiredState = await Deployment_db.create({
       name: uniqueName,
       image: image || "registry.k8s.io/pause:3.10",
@@ -153,7 +153,7 @@ const create_deployment = async (req, res) => {
     });
 
     res.status(201).json({
-      msg: "Deployment created and recorded",
+      msg: "Deployment created",
       deployment: desiredState,
     });
   } catch (err) {
@@ -174,13 +174,13 @@ const delete_deployment = async (req, res) => {
       return res.status(400).json({ msg: "Deployment name is required" });
     }
 
-    // 1. REMOVE FROM MONGODB (Update Desired State)
+    // delete from mongodb
     await Deployment_db.findOneAndUpdate(
       { name, createdBy: userId },
       { status: "deleted" },
     );
 
-    // 2. DELETE FROM KUBERNETES (Update Actual State)
+    //delete from k8s
     await deleteDeployment(name);
 
     res.json({ msg: `Deployment ${name} permanently removed` });
@@ -229,7 +229,6 @@ const scale_deployment = async (req, res) => {
     const { name, replicas } = req.body;
     const userId = req.userId;
 
-    // Convert to Number
     const replicaCount = parseInt(replicas);
 
     const updatedDb = await Deployment_db.findOneAndUpdate(
@@ -257,8 +256,7 @@ const scale_deployment = async (req, res) => {
       error: err.response?.body?.message || err.message,
     });
   }
-}; // Import k8sApiLogs from your services file at the top
-const { getPodLogs, k8sApiLogs } = require("../services/k8sServices");
+};
 
 const get_deployment_logs = async (req, res) => {
   try {

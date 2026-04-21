@@ -1,4 +1,4 @@
-const { node_db, pod_db } = require("./database");
+const { nodedb, pod_db } = require("./database");
 const { getNodes } = require("../services/k8sServices");
 
 const syncNodeHealth = async () => {
@@ -11,7 +11,7 @@ const syncNodeHealth = async () => {
         nodeId: node.name,
       });
 
-      await node_db.findOneAndUpdate(
+      await nodedb.findOneAndUpdate(
         { name: node.name },
         {
           status: node.status,

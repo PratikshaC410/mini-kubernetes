@@ -188,9 +188,6 @@ const Dashboard = () => {
 
       {/* CLUSTER OVERVIEW (Nodes) */}
       <div style={{ marginBottom: "30px" }}>
-        <h3 style={{ borderBottom: "1px solid #ddd", paddingBottom: "5px" }}>
-          Cluster Overview
-        </h3>
         <div style={{ display: "flex", gap: "15px", flexWrap: "wrap" }}>
           {nodes.map((node) => (
             <div
@@ -216,15 +213,7 @@ const Dashboard = () => {
                   alignItems: "center",
                 }}
               >
-                <span
-                  style={{
-                    fontSize: "10px",
-                    fontWeight: "bold",
-                    color: node.status === "Ready" ? "green" : "red",
-                  }}
-                >
-                  {node.status.toUpperCase()}
-                </span>
+                <span>{node.status.toUpperCase()}</span>
                 <span style={{ fontSize: "12px" }}>Pods: {node.podCount}</span>
               </div>
             </div>
@@ -232,7 +221,6 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* DEPLOYMENT FORM */}
       <div
         style={{
           marginBottom: "40px",
@@ -303,7 +291,7 @@ const Dashboard = () => {
             style={{
               gridColumn: "span 2",
               padding: "10px",
-              backgroundColor: "#333",
+              backgroundColor: "#5557f4",
               color: "#fff",
               border: "none",
               borderRadius: "4px",
@@ -315,7 +303,7 @@ const Dashboard = () => {
         </form>
       </div>
 
-      <h3>Active Deployments & Actual State</h3>
+      <h3>Active Deployments </h3>
       {deployments.map((dep) => (
         <div
           key={dep._id}
@@ -408,16 +396,7 @@ const Dashboard = () => {
                         >
                           {pod.nodeId}
                         </td>
-                        <td
-                          style={{
-                            padding: "10px",
-                            fontWeight: "bold",
-                            color:
-                              pod.status === "running" ? "green" : "orange",
-                          }}
-                        >
-                          {pod.status.toUpperCase()}
-                        </td>
+                        <td>{pod.status.toUpperCase()}</td>
                         <td style={{ padding: "10px" }}>{pod.restartCount}</td>
                       </tr>
                     ))
@@ -469,7 +448,6 @@ const Dashboard = () => {
         </div>
       ))}
 
-      {/* MODAL */}
       {isLogModalOpen && (
         <div
           style={{
@@ -521,7 +499,7 @@ const Dashboard = () => {
                 backgroundColor: "#000",
                 padding: "15px",
                 borderRadius: "4px",
-                color: "#0f0",
+                color: "white",
               }}
             >
               {selectedLogs || "Scanning..."}

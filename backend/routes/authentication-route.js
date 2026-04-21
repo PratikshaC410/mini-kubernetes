@@ -8,6 +8,7 @@ const {
   scale_deployment,
   get_deployment_logs,
   get_all_pods,
+  get_all_nodes,
   register,
   verifyotp,
   login,
@@ -21,6 +22,7 @@ router.delete("/deployments/:id", authMiddleware, delete_deployment);
 router.patch("/deployments/scale", authMiddleware, scale_deployment);
 router.get("/deployments/logs/:name", authMiddleware, get_deployment_logs);
 router.get("/pods", authMiddleware, get_all_pods);
+router.get("/nodes", authMiddleware, get_all_nodes);
 router.post("/register", register);
 router.post("/verify", verifyotp);
 router.post("/login", login);

@@ -321,6 +321,14 @@ const get_all_pods = async (req, res) => {
   }
 };
 
+const get_all_nodes = async (req, res) => {
+  try {
+    const nodes = await node_db.find({});
+    res.json(nodes);
+  } catch (err) {
+    res.status(500).json({ msg: "Error fetching nodes" });
+  }
+};
 module.exports = {
   register,
   verifyotp,
@@ -331,4 +339,5 @@ module.exports = {
   scale_deployment,
   get_deployment_logs,
   get_all_pods,
+  get_all_nodes,
 };

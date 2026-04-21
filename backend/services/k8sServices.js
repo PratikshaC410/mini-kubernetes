@@ -153,6 +153,29 @@ const getPodLogs = async (podName) => {
     throw err;
   }
 };
+
+const getNodes = async () => {
+  try {
+    const res = await k8sApiLogs.listNode();
+    return res.body.items.map((node) => {
+      // Find the 'Ready' condition in the status array
+      const readyCondition = node.status.conditions.find(
+        (c) => c.type === "Ready",
+      );
+      const isReady = readyCondition && readyCondition.status === "True";
+
+      return {
+        name: node.metadata.name,
+        status: isReady ? "Ready" : "NotReady",
+        cpu: node.status.capacity.cpu,
+        memory: node.status.capacity.memory,
+      };
+    });
+  } catch (error) {
+    console.error("K8s API Error (getNodes):", error.message);
+    return [];
+  }
+};
 module.exports = {
   createDeployment,
   getDeployments,
@@ -160,4 +183,5 @@ module.exports = {
   scaleDeployment,
   getPodLogs,
   k8sApiLogs,
+  getNodes,
 };

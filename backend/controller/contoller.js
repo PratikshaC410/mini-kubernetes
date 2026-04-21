@@ -1,5 +1,6 @@
 const { Deployment_db } = require("./database");
 const { syncPodHealth } = require("./podmanager");
+const { syncNodeHealth } = require("./nodemanager");
 const {
   getDeployments,
   createDeployment,
@@ -15,6 +16,8 @@ const reconcile = async () => {
   try {
     console.log("--- Starting Reconciliation Loop ---");
 
+    //sync hardware ie nodes
+    await syncNodeHealth();
     //  POD MANAGER: Sync actual container health to MongoDB
     // (Ensures your DB knows which pods are actually running)
     await syncPodHealth();

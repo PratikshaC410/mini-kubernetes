@@ -146,4 +146,16 @@ const podSchema = new mongoose.Schema(
 
 const pod_db = mongoose.model("Pod", podSchema);
 
-module.exports = { DB, userdb, otpdb, Deployment_db, pod_db };
+const nodeSchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true, unique: true },
+    status: { type: String, default: "Unknown" }, // e.g., Ready, NotReady
+    cpu: { type: String }, // From K8s: e.g., "4"
+    memory: { type: String }, // From K8s: e.g., "8192Ki"
+    role: { type: String, default: "worker" }, // master or worker
+  },
+  { timestamps: true },
+);
+
+const nodedb = mongoose.model("Node", nodeSchema);
+module.exports = { DB, userdb, otpdb, Deployment_db, pod_db, nodedb };

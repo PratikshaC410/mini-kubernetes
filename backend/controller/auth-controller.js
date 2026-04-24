@@ -238,9 +238,7 @@ const scale_deployment = async (req, res) => {
     );
 
     if (!updatedDb) {
-      return res
-        .status(404)
-        .json({ msg: "Deployment not found in your records" });
+      return res.status(404).json({ msg: "Deployment not found " });
     }
 
     await scaleDeployment(name, replicaCount);

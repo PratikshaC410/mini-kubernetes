@@ -479,7 +479,6 @@ const Dashboard = () => {
             <button
               onClick={() => setIsLogModalOpen(false)}
               style={{
-                alignSelf: "flex-end",
                 color: "white",
                 marginBottom: "10px",
                 backgroundColor: "transparent",
@@ -492,8 +491,6 @@ const Dashboard = () => {
             </button>
             <pre
               style={{
-                whiteSpace: "pre-wrap",
-                fontFamily: "monospace",
                 overflow: "auto",
                 flex: 1,
                 backgroundColor: "#000",

@@ -26,7 +26,7 @@ const schedulePodLeastLoaded = async () => {
     return bestNode;
   } catch (err) {
     console.error("[SCHEDULER] Error:", err.message);
-    return "mini-k8s-cluster";
+    return "mini-k8s-cluster"; // this is by default if nothing is found then return the default node
   }
 };
 

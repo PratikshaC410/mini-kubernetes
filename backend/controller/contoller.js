@@ -68,30 +68,25 @@ const reconcile = async () => {
       }
     }
 
-    //  KUBERNETES -> DB (Cleanup/Delete)
-    // If it exists in K8s but NOT in our DB: DELETE
+    //  KUBERNETES -> DB :-delete
+    // If it exists in K8s but NOT in  DB: DELETE
     for (const actual of actualStates) {
       const stillDesired = desiredStates.find((d) => d.name === actual.name);
 
       if (!stillDesired) {
-        console.log(
-          `[RECONCILE] Orphaned Deployment found: ${actual.name}. Deleting from K8s...`,
-        );
+        console.log(` Deployment found: ${actual.name}. Deleting from K8s...`);
         try {
           await deleteDeployment(actual.name);
-          console.log(`[RECONCILE] Successfully deleted ${actual.name}`);
+          console.log(` Successfully deleted ${actual.name}`);
         } catch (err) {
-          console.error(
-            `[RECONCILE] Delete Failed for ${actual.name}:`,
-            err.message,
-          );
+          console.error(` Delete Failed for ${actual.name}:`, err.message);
         }
       }
     }
 
-    console.log("--- Reconciliation Complete ---");
+    console.log("Reconciliation Complete");
   } catch (err) {
-    console.error("Reconciliation Loop Global Error:", err.message);
+    console.error("Reconciliation Loop  Error:", err.message);
   }
 };
 

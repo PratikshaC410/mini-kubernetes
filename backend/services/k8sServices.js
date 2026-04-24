@@ -67,7 +67,7 @@ const deleteDeployment = async (name) => {
     );
     return response.body || response;
   } catch (error) {
-    // Log the actual error from K8s
+    // get the actual error from K8s
     console.error(
       "K8s API Error (Delete):",
       error.response?.body || error.message,

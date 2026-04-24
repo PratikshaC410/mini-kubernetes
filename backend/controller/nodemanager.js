@@ -6,7 +6,7 @@ const syncNodeHealth = async () => {
     const actualNodes = await getNodes();
 
     for (const node of actualNodes) {
-      // Count how many pods are currently on this node in our DB
+      // Counting how many pods are currently on this node in  DB
       const currentPodCount = await pod_db.countDocuments({
         nodeId: node.name,
       });

@@ -2,16 +2,24 @@ const { node_db } = require("../database");
 
 const schedulePodLeastLoaded = async () => {
   try {
-    // 1. Get only healthy nodes from our new node_db
-    const healthyNodes = await node_db.find({ status: "Ready" });
+    //  Get only healthy nodes from our new node_db
+    const goodNodes = await node_db.find({ status: "Ready" });
 
-    if (healthyNodes.length === 0) {
+    if (goodNodes.length === 0) {
       console.error("[SCHEDULER] No Ready nodes found in node_db!");
       return "unscheduled";
     }
 
-    // 2. Sort by podCount (Least Loaded first)
-    const sortedNodes = healthyNodes.sort((a, b) => a.podCount - b.podCount);
+    //  Sort by podCount (Least Loaded first)
+    const sortedNodes = goodNodes.sort((a, b) => {
+      if (a.podCount < b.podCount) {
+        return -1; // Move a to the front
+      } else if (a.podCount > b.podCount) {
+        return 1; // Move b to the front
+      } else {
+        return 0;
+      }
+    });
 
     const bestNode = sortedNodes[0].name;
     console.log(`[SCHEDULER] Matchmaking: Pod -> ${bestNode}`);

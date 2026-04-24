@@ -11,7 +11,7 @@ const Dashboard = () => {
 
   const [deployments, setDeployments] = useState([]);
   const [pods, setPods] = useState([]);
-  const [nodes, setNodes] = useState([]); // Added Node state
+  const [nodes, setNodes] = useState([]);
   const [replicaInputs, setReplicaInputs] = useState({});
 
   const [name, setName] = useState("");
@@ -159,7 +159,6 @@ const Dashboard = () => {
         fontFamily: "Arial, sans-serif",
       }}
     >
-      {/* HEADER */}
       <div
         style={{
           display: "flex",
@@ -186,7 +185,6 @@ const Dashboard = () => {
         </button>
       </div>
 
-      {/* CLUSTER OVERVIEW (Nodes) */}
       <div style={{ marginBottom: "30px" }}>
         <div style={{ display: "flex", gap: "15px", flexWrap: "wrap" }}>
           {nodes.map((node) => (
@@ -481,7 +479,7 @@ const Dashboard = () => {
               style={{
                 color: "white",
                 marginBottom: "10px",
-                backgroundColor: "transparent",
+
                 border: "1px solid #fff",
                 padding: "5px 15px",
                 cursor: "pointer",

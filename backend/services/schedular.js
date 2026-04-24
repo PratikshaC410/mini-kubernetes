@@ -21,8 +21,8 @@ const schedulePodLeastLoaded = async () => {
       }
     });
 
-    const bestNode = sortedNodes[0].name;
-    console.log(`[SCHEDULER] Matchmaking: Pod -> ${bestNode}`);
+    const bestNode = sortedNodes[0].name; //fetch the name of the first node in the list ie the node with least laod
+    console.log(`[SCHEDULER] Matching Pod -> ${bestNode}`);
     return bestNode;
   } catch (err) {
     console.error("[SCHEDULER] Error:", err.message);

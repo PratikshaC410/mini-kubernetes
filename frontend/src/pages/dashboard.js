@@ -100,10 +100,10 @@ const Dashboard = () => {
       toast.error("Creation failed");
     }
   };
-
   const handleScale = async (depName) => {
     const newCount = replicaInputs[depName];
     if (newCount === undefined) return;
+
     try {
       const res = await fetch(`${API}/api/auth/deployments/scale`, {
         method: "PATCH",
@@ -111,17 +111,25 @@ const Dashboard = () => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ name: depName, replicas: Number(newCount) }),
+        body: JSON.stringify({
+          name: depName,
+          replicas: Number(newCount),
+        }),
       });
+
+      const data = await res.json();
+
       if (res.ok) {
-        toast("Scaling ");
+        toast(`Success: ${data.msg}`);
         fetchDeployments();
+      } else {
+        toast.error(`Error: ${data.error || data.msg}`);
       }
     } catch (err) {
-      toast("Scale error");
+      console.error("Frontend Scale Error:", err);
+      toast("Network error: Could not reach the server");
     }
   };
-
   const handleDelete = async (depName) => {
     try {
       const res = await fetch(`${API}/api/auth/deployments/${depName}`, {
@@ -480,7 +488,7 @@ const Dashboard = () => {
                 color: "white",
                 marginBottom: "10px",
 
-                border: "1px solid #fff",
+                border: "1px",
                 padding: "5px 15px",
                 cursor: "pointer",
               }}

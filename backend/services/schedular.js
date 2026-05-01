@@ -2,7 +2,7 @@ const { node_db } = require("../database");
 
 const schedulePodLeastLoaded = async () => {
   try {
-    //  Get only healthy nodes from our new node_db
+    //  Get  healthy nodes from  node_db
     const goodNodes = await node_db.find({ status: "Ready" });
 
     if (goodNodes.length === 0) {

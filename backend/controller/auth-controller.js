@@ -228,9 +228,9 @@ const scale_deployment = async (req, res) => {
   try {
     const { name, replicas } = req.body;
     const userId = req.userId;
-
+    console.log(userId);
     const replicaCount = parseInt(replicas);
-
+    console.log(replicaCount);
     const updatedDb = await Deployment_db.findOneAndUpdate(
       { name, createdBy: userId },
       { replicas: replicaCount },

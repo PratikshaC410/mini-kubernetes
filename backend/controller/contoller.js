@@ -29,7 +29,9 @@ const reconcile = async () => {
 
     //  SYNC: DB -> KUBERNETES (Create or Scale)
     for (const desired of desiredStates) {
-      const actual = actualStates.find((a) => a.name === desired.name);
+      const actual = actualStates.find(
+        (a) => a.name === desired.name && a.namespace === desired.namespace,
+      );
 
       // If it exists in DB but not in K8s: CREATE
       if (!actual) {
@@ -42,6 +44,7 @@ const reconcile = async () => {
             image: desired.image,
             replicas: desired.replicas,
             containerPort: desired.containerPort,
+            namespace: desired.namespace,
           });
         } catch (err) {
           console.error(

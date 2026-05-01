@@ -107,7 +107,7 @@ const getDeployments = async () => {
 };
 const scaleDeployment = async (name, replicas) => {
   try {
-    const namespace = "default";
+    const namespace = namespace;
     const cluster = kc.getCurrentCluster();
     const serverUrl = cluster.server.replace("localhost", "127.0.0.1");
     const url = `${serverUrl}/apis/apps/v1/namespaces/${namespace}/deployments/${name}/scale`;
@@ -144,7 +144,7 @@ const scaleDeployment = async (name, replicas) => {
 // Fetch logs from a specific pod
 const getPodLogs = async (podName) => {
   try {
-    const namespace = "default";
+    const namespace = namespace;
     // .readNamespacedPodLog returns a plain text string of the logs
     const response = await k8sApiLogs.readNamespacedPodLog(podName, namespace);
     return response.body;

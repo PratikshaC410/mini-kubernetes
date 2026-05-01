@@ -18,7 +18,7 @@ const Dashboard = () => {
   const [image, setImage] = useState("");
   const [replicas, setReplicas] = useState(1);
   const [containerPort, setContainerPort] = useState("");
-
+  const [namespace, setNamespace] = useState("");
   const [selectedLogs, setSelectedLogs] = useState(null);
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
 
@@ -86,6 +86,7 @@ const Dashboard = () => {
           image,
           replicas,
           containerPort: Number(containerPort),
+          namespace,
         }),
       });
       if (res.ok) {
@@ -94,6 +95,7 @@ const Dashboard = () => {
         setImage("");
         setReplicas(1);
         setContainerPort("");
+        setNamespace("");
         fetchDeployments();
       }
     } catch (err) {
@@ -288,6 +290,17 @@ const Dashboard = () => {
             <input
               value={containerPort}
               onChange={(e) => setContainerPort(e.target.value)}
+              required
+              style={{ width: "90%", padding: "8px" }}
+            />
+          </div>
+          <div>
+            <label style={{ display: "block", marginBottom: "5px" }}>
+              Namespace{" "}
+            </label>
+            <input
+              value={namespace}
+              onChange={(e) => setNamespace(e.target.value)}
               required
               style={{ width: "90%", padding: "8px" }}
             />

@@ -485,12 +485,13 @@ const Dashboard = () => {
             <button
               onClick={() => setIsLogModalOpen(false)}
               style={{
+                backgroundColor: "#ff4d4d",
                 color: "white",
-                marginBottom: "10px",
-
-                border: "1px",
-                padding: "5px 15px",
+                border: "none",
+                padding: "8px 16px",
+                borderRadius: "4px",
                 cursor: "pointer",
+                alignSelf: "flex-end",
               }}
             >
               Close Logs

@@ -106,6 +106,7 @@ const desired_state_schema = new mongoose.Schema(
       enum: ["active", "deleted"],
       default: "active",
     },
+    namespace: { type: String, default: "default" },
   },
   { timestamps: true },
 );
@@ -140,6 +141,7 @@ const podSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    namespace: { type: String, default: "default" },
   },
   { timestamps: true },
 );

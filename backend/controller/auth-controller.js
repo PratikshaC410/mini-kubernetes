@@ -127,7 +127,7 @@ const login = async (req, res) => {
 
 const create_deployment = async (req, res) => {
   try {
-    const { name, image, replicas, containerPort } = req.body;
+    const { name, image, replicas, containerPort, namespace } = req.body;
     const userId = req.userId;
 
     const safeName = name.toLowerCase().replace(/[^a-z0-9]/g, "-");
@@ -140,6 +140,7 @@ const create_deployment = async (req, res) => {
       image: image || "registry.k8s.io/pause:3.10",
       replicas: replicas || 1,
       containerPort: containerPort || 80,
+      namespace: namespace || "default",
       createdBy: userId,
       status: "active",
     });
@@ -150,6 +151,7 @@ const create_deployment = async (req, res) => {
       image: desiredState.image,
       replicas: desiredState.replicas,
       containerPort: desiredState.containerPort,
+      namespace: desiredState.namespace,
     });
 
     res.status(201).json({
@@ -181,7 +183,7 @@ const delete_deployment = async (req, res) => {
     );
 
     //delete from k8s
-    await deleteDeployment(name);
+    await deleteDeployment(name, namespace || "default");
 
     res.json({ msg: `Deployment ${name} permanently removed` });
   } catch (err) {
@@ -208,7 +210,11 @@ const get_all_deployments = async (req, res) => {
     const k8sApps = await getDeployments();
 
     const result = myDesiredApps.map((dbApp) => {
-      const actual = k8sApps.find((k) => k.name === dbApp.name);
+      const actual = k8sApps.find(
+        (k) =>
+          k.name === dbApp.name &&
+          (k.namespace || "default") === (dbApp.namespace || "default"),
+      );
       return {
         ...dbApp._doc,
         actualStatus: actual ? actual.status : "Offline",

@@ -1,18 +1,25 @@
 const k8s = require("@kubernetes/client-node");
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+
 const kc = new k8s.KubeConfig();
 kc.loadFromDefault();
-const k8sApi = kc.makeApiClient(k8s.AppsV1Api);
-const k8sApiLogs = kc.makeApiClient(k8s.CoreV1Api);
+
 const k8sAppsApi = kc.makeApiClient(k8s.AppsV1Api);
-const NAMESPACE = "default";
+const k8sCoreApi = kc.makeApiClient(k8s.CoreV1Api);
 
-// CREATE DEPLOYMENT
+//  CREATE DEPLOYMENT
+const createDeployment = async ({
+  name,
+  image,
+  replicas,
+  containerPort,
+  namespace,
+}) => {
+  const ns = namespace || "default";
 
-const createDeployment = async ({ name, image, replicas, containerPort }) => {
   const k8sName = name.replace(/\s+/g, "-").toLowerCase();
 
-  const deploymentManifest = {
+  const manifest = {
     apiVersion: "apps/v1",
     kind: "Deployment",
     metadata: {
@@ -20,7 +27,7 @@ const createDeployment = async ({ name, image, replicas, containerPort }) => {
       labels: { app: k8sName },
     },
     spec: {
-      replicas: parseInt(replicas) || 1,
+      replicas: Number(replicas) || 1,
       selector: {
         matchLabels: { app: k8sName },
       },
@@ -33,8 +40,7 @@ const createDeployment = async ({ name, image, replicas, containerPort }) => {
             {
               name: `container-${k8sName}`,
               image: image || "registry.k8s.io/pause:3.10",
-              imagePullPolicy: "IfNotPresent",
-              ports: [{ containerPort: parseInt(containerPort) || 80 }],
+              ports: [{ containerPort: Number(containerPort) || 80 }],
             },
           ],
         },
@@ -43,145 +49,115 @@ const createDeployment = async ({ name, image, replicas, containerPort }) => {
   };
 
   try {
-    const response = await k8sAppsApi.createNamespacedDeployment(
-      NAMESPACE,
-      deploymentManifest,
-    );
-    return response.body || response;
-  } catch (error) {
-    console.error(
-      "K8s API Error (Create):",
-      error.response?.body || error.message,
-    );
-    throw error;
+    return await k8sAppsApi.createNamespacedDeployment(ns, manifest);
+  } catch (err) {
+    if (err.response?.statusCode === 409) {
+      console.log("Deployment already exists");
+      return;
+    }
+    throw err;
   }
 };
 
-//  DELETE DEPLOYMENT
+// DELETE
+const deleteDeployment = async (name, namespace) => {
+  const ns = namespace || "default";
 
-const deleteDeployment = async (name) => {
   try {
-    const response = await k8sAppsApi.deleteNamespacedDeployment(
-      name,
-      NAMESPACE,
-    );
-    return response.body || response;
-  } catch (error) {
-    // get the actual error from K8s
-    console.error(
-      "K8s API Error (Delete):",
-      error.response?.body || error.message,
-    );
-    throw error;
+    return await k8sAppsApi.deleteNamespacedDeployment(name, ns);
+  } catch (err) {
+    throw err;
   }
 };
 
-//  GET DEPLOYMENTS
+// GET DEPLOYMENTS
+const getDeployments = async (namespace) => {
+  const ns = namespace || "default";
 
-const getDeployments = async () => {
   try {
-    const res = await k8sAppsApi.listNamespacedDeployment(NAMESPACE);
+    const res = await k8sAppsApi.listNamespacedDeployment(ns);
 
-    const items = res.body ? res.body.items : res.items || [];
-
-    return items.map((dep) => {
+    return res.body.items.map((dep) => {
       const desired = dep.spec?.replicas || 0;
       const available = dep.status?.availableReplicas || 0;
 
       return {
         name: dep.metadata.name,
-        image: dep.spec.template.spec.containers[0]?.image || "N/A",
+        namespace: dep.metadata.namespace,
         replicas: desired,
         availableReplicas: available,
-        status: available >= desired && desired > 0 ? "Running" : "Pending",
-        creationTimestamp: dep.metadata.creationTimestamp,
+        status: available >= desired ? "Running" : "Pending",
       };
     });
-  } catch (error) {
-    console.error(
-      "K8s API Error (Get):",
-      error.response?.body || error.message,
-    );
+  } catch (err) {
+    console.error("GET ERROR:", err.message);
     return [];
   }
 };
-const scaleDeployment = async (name, replicas) => {
+
+//  SCALE
+const scaleDeployment = async (name, replicas, namespace) => {
+  const ns = namespace || "default";
+
   try {
-    const namespace = namespace;
-    const cluster = kc.getCurrentCluster();
-    const serverUrl = cluster.server.replace("localhost", "127.0.0.1");
-    const url = `${serverUrl}/apis/apps/v1/namespaces/${namespace}/deployments/${name}/scale`;
-
-    // Create an empty options object
-    const opts = {};
-
-    //   the K8s library puts the 'Authorization' header into 'opts'
-    await kc.applyToRequest(opts);
-
-    //   fetching, merging K8s headers with our Content-Type
-    const res = await fetch(url, {
-      method: "PATCH",
-      headers: {
-        ...opts.headers, //   This includes the Bearer token
-        "Content-Type": "application/merge-patch+json",
-      },
-      body: JSON.stringify({
+    return await k8sAppsApi.patchNamespacedDeploymentScale(
+      name,
+      ns,
+      {
         spec: { replicas: Number(replicas) },
-      }),
-    });
-
-    if (!res.ok) {
-      const errorData = await res.json();
-      throw new Error(errorData.message || `Status: ${res.status}`);
-    }
-
-    return await res.json();
+      },
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      {
+        headers: {
+          "Content-Type": "application/merge-patch+json",
+        },
+      },
+    );
   } catch (err) {
-    console.error("FINAL SCALE ERROR:", err.message);
+    console.error("SCALE ERROR:", err.message);
     throw err;
   }
 };
-// Fetch logs from a specific pod
-const getPodLogs = async (podName) => {
+
+//  LOGS
+const getPodLogs = async (podName, namespace) => {
+  const ns = namespace || "default";
+
   try {
-    const namespace = namespace;
-    // .readNamespacedPodLog returns a plain text string of the logs
-    const response = await k8sApiLogs.readNamespacedPodLog(podName, namespace);
-    return response.body;
+    const res = await k8sCoreApi.readNamespacedPodLog(podName, ns);
+    return res.body;
   } catch (err) {
-    console.error("K8s Log Error:", err.response?.body || err.message);
     throw err;
   }
 };
 
+// NODES
 const getNodes = async () => {
   try {
-    const res = await k8sApiLogs.listNode();
+    const res = await k8sCoreApi.listNode();
+
     return res.body.items.map((node) => {
-      // Find the 'Ready' condition in the status array
-      const readyCondition = node.status.conditions.find(
-        (c) => c.type === "Ready",
-      );
-      const isReady = readyCondition && readyCondition.status === "True";
+      const ready = node.status.conditions.find((c) => c.type === "Ready");
 
       return {
         name: node.metadata.name,
-        status: isReady ? "Ready" : "NotReady",
-        cpu: node.status.capacity.cpu,
-        memory: node.status.capacity.memory,
+        status: ready?.status === "True" ? "Ready" : "NotReady",
       };
     });
-  } catch (error) {
-    console.error("K8s API Error (getNodes):", error.message);
+  } catch (err) {
     return [];
   }
 };
+
 module.exports = {
   createDeployment,
-  getDeployments,
   deleteDeployment,
+  getDeployments,
   scaleDeployment,
   getPodLogs,
-  k8sApiLogs,
   getNodes,
+  k8sApiLogs: k8sCoreApi,
 };

@@ -8,6 +8,7 @@ const {
   deleteDeployment,
   getDeployments,
   scaleDeployment,
+  k8sApi,
 } = require("../services/k8sServices");
 
 const transporter = nodemailer.createTransport({
@@ -123,29 +124,52 @@ const login = async (req, res) => {
   }
 };
 
-// Create deployment
-
+// CREATE DEPLOYMENT
 const create_deployment = async (req, res) => {
   try {
     const { name, image, replicas, containerPort, namespace } = req.body;
     const userId = req.userId;
 
+    if (!userId) {
+      return res.status(401).json({ msg: "Unauthorized: No User ID found" });
+    }
+
+    // Default to 'default' if the user provides an empty string
+    const targetNamespace = namespace || "default";
+
+    // --- START AUTO-CREATE NAMESPACE LOGIC ---
+    try {
+      // Attempt to read the namespace to see if it exists
+      await k8sApi.readNamespace(targetNamespace);
+    } catch (err) {
+      // If statusCode is 404, the namespace is missing
+      if (err.response && err.response.statusCode === 404) {
+        console.log(
+          `Namespace "${targetNamespace}" not found. Creating it now...`,
+        );
+        await k8sApi.createNamespace({
+          metadata: { name: targetNamespace },
+        });
+      } else {
+        // If it's a different error (e.g., connection/auth), throw it to be caught below
+        throw err;
+      }
+    }
+    // --- END AUTO-CREATE NAMESPACE LOGIC ---
+
     const safeName = name.toLowerCase().replace(/[^a-z0-9]/g, "-");
     const uniqueName = `${safeName}-${Date.now()}`;
-
-    // saving to mongodb the desired state
 
     const desiredState = await Deployment_db.create({
       name: uniqueName,
       image: image || "registry.k8s.io/pause:3.10",
       replicas: replicas || 1,
       containerPort: containerPort || 80,
-      namespace: namespace || "default",
+      namespace: targetNamespace,
       createdBy: userId,
       status: "active",
     });
 
-    //this is the actual state
     await createDeployment({
       name: uniqueName,
       image: desiredState.image,
@@ -159,14 +183,14 @@ const create_deployment = async (req, res) => {
       deployment: desiredState,
     });
   } catch (err) {
+    console.error("Backend Create Error:", err.response?.body || err.message);
     res.status(500).json({
       msg: "Error in creating deployment",
-      error: err.body?.message || err.message,
+      error: err.response?.body?.message || err.message,
     });
   }
 };
-
-// delete deployments
+//  DELETE DEPLOYMENT
 const delete_deployment = async (req, res) => {
   try {
     const name = req.params.id;
@@ -176,14 +200,21 @@ const delete_deployment = async (req, res) => {
       return res.status(400).json({ msg: "Deployment name is required" });
     }
 
-    // delete from mongodb
-    await Deployment_db.findOneAndUpdate(
-      { name, createdBy: userId },
+    const deployment = await Deployment_db.findOne({
+      name,
+      createdBy: userId,
+    });
+
+    if (!deployment) {
+      return res.status(404).json({ msg: "Deployment not found" });
+    }
+
+    await Deployment_db.updateOne(
+      { _id: deployment._id },
       { status: "deleted" },
     );
 
-    //delete from k8s
-    await deleteDeployment(name, namespace || "default");
+    await deleteDeployment(name, deployment.namespace || "default");
 
     res.json({ msg: `Deployment ${name} permanently removed` });
   } catch (err) {
@@ -195,18 +226,16 @@ const delete_deployment = async (req, res) => {
   }
 };
 
-// get user deployments
+//  GET USER DEPLOYMENTS
 const get_all_deployments = async (req, res) => {
   try {
     const userId = req.userId;
 
-    // get desired state from DB for this user
     const myDesiredApps = await Deployment_db.find({
       createdBy: userId,
       status: "active",
     });
 
-    // get actual state from K8s
     const k8sApps = await getDeployments();
 
     const result = myDesiredApps.map((dbApp) => {
@@ -215,12 +244,14 @@ const get_all_deployments = async (req, res) => {
           k.name === dbApp.name &&
           (k.namespace || "default") === (dbApp.namespace || "default"),
       );
+
       return {
         ...dbApp._doc,
         actualStatus: actual ? actual.status : "Offline",
         availableReplicas: actual ? actual.availableReplicas : 0,
       };
     });
+
     res.json(result);
   } catch (err) {
     console.error("K8s Get Error:", err.body || err.message);
@@ -230,13 +261,15 @@ const get_all_deployments = async (req, res) => {
     });
   }
 };
+
+//  SCALE DEPLOYMENT
 const scale_deployment = async (req, res) => {
   try {
     const { name, replicas } = req.body;
     const userId = req.userId;
-    console.log(userId);
+
     const replicaCount = parseInt(replicas);
-    console.log(replicaCount);
+
     const updatedDb = await Deployment_db.findOneAndUpdate(
       { name, createdBy: userId },
       { replicas: replicaCount },
@@ -244,10 +277,10 @@ const scale_deployment = async (req, res) => {
     );
 
     if (!updatedDb) {
-      return res.status(404).json({ msg: "Deployment not found " });
+      return res.status(404).json({ msg: "Deployment not found" });
     }
 
-    await scaleDeployment(name, replicaCount);
+    await scaleDeployment(name, replicaCount, updatedDb.namespace || "default");
 
     res.json({
       msg: `Scaled ${name} to ${replicaCount}`,
@@ -262,54 +295,67 @@ const scale_deployment = async (req, res) => {
   }
 };
 
+//  GET DEPLOYMENT LOGS
 const get_deployment_logs = async (req, res) => {
   try {
-    const { name } = req.params; // This is the deployment name from the URL
+    const { name } = req.params;
+    const userId = req.userId;
 
-    // Finding the pods belonging to this deployment using a label selector
-    //  use k8sApiLogs because listNamespacedPod is a CoreV1 operation
+    const deployment = await Deployment_db.findOne({
+      name,
+      createdBy: userId,
+    });
+
+    if (!deployment) {
+      return res.status(404).json({ msg: "Deployment not found" });
+    }
+
+    const namespace = deployment.namespace || "default";
+
     const podRes = await k8sApiLogs.listNamespacedPod(
-      "default",
+      namespace,
       undefined,
       undefined,
       undefined,
       undefined,
-      `app=${name}`, // matches the label  tht is set in createDeployment
+      `app=${name}`,
     );
 
     const pods = podRes.body.items;
-    console.log(pods);
+
     if (!pods || pods.length === 0) {
       return res
         .status(404)
         .json({ msg: "No active pods found for this deployment" });
     }
 
-    //  Get the name of the first pod found
     const podName = pods[0].metadata.name;
 
-    // Fetch the actual logs using the function in your services file
-    const logs = await getPodLogs(podName);
+    const logs = await getPodLogs(podName, namespace);
 
     res.json({ podName, logs });
   } catch (err) {
     console.error("Log Fetch Error:", err.message);
-    res.status(500).json({ msg: "Failed to fetch logs", error: err.message });
+    res.status(500).json({
+      msg: "Failed to fetch logs",
+      error: err.message,
+    });
   }
 };
+
+//  GET USER PODS
 const get_all_pods = async (req, res) => {
   try {
     const userId = req.userId;
-    // console.log("Fetching pods for user:", userId);
 
-    // Fetch all pods from the pod_db
     const allPods = await pod_db.find({});
 
-    // Fetch all deployments belonging to this user
-    const userDeployments = await Deployment_db.find({ createdBy: userId });
+    const userDeployments = await Deployment_db.find({
+      createdBy: userId,
+    });
+
     const userDeploymentIds = userDeployments.map((d) => d._id.toString());
 
-    // Filter pods that belong to the user's deployments
     const filteredPods = allPods.filter(
       (pod) =>
         pod.deploymentId &&
@@ -319,12 +365,14 @@ const get_all_pods = async (req, res) => {
     res.status(200).json(filteredPods);
   } catch (err) {
     console.error("GET_ALL_PODS ERROR:", err);
-    res
-      .status(500)
-      .json({ msg: "Server Error fetching pods", error: err.message });
+    res.status(500).json({
+      msg: "Server Error fetching pods",
+      error: err.message,
+    });
   }
 };
 
+//  GET NODES
 const get_all_nodes = async (req, res) => {
   try {
     const nodes = await node_db.find({});
@@ -333,6 +381,7 @@ const get_all_nodes = async (req, res) => {
     res.status(500).json({ msg: "Error fetching nodes" });
   }
 };
+
 module.exports = {
   register,
   verifyotp,

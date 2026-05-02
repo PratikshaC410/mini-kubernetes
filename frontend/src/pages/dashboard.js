@@ -11,7 +11,7 @@ const Dashboard = () => {
 
   const [deployments, setDeployments] = useState([]);
   const [pods, setPods] = useState([]);
-  const [nodes, setNodes] = useState([]);
+
   const [replicaInputs, setReplicaInputs] = useState({});
 
   const [name, setName] = useState("");
@@ -46,27 +46,14 @@ const Dashboard = () => {
     }
   };
 
-  const fetchNodes = async () => {
-    try {
-      const res = await fetch(`${API}/api/auth/nodes`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (res.ok) setNodes(data);
-    } catch (err) {
-      console.error("Error fetching nodes", err);
-    }
-  };
-
   useEffect(() => {
     if (token) {
       fetchDeployments();
       fetchPods();
-      fetchNodes();
+
       const interval = setInterval(() => {
         fetchDeployments();
         fetchPods();
-        fetchNodes();
       }, 10000);
       return () => clearInterval(interval);
     }
@@ -89,17 +76,22 @@ const Dashboard = () => {
           namespace,
         }),
       });
+
       if (res.ok) {
-        toast("Deployment Created");
+        console.log("okh");
+        toast.success("Deployment Created");
         setName("");
         setImage("");
         setReplicas(1);
         setContainerPort("");
         setNamespace("");
         fetchDeployments();
+      } else {
+        const errorData = await res.json();
+        toast.error(`Server Error: ${errorData.message || "Internal Error"}`);
       }
     } catch (err) {
-      toast.error("Creation failed");
+      toast.error("Network failed. Is the backend running?");
     }
   };
   const handleScale = async (depName) => {
@@ -193,40 +185,6 @@ const Dashboard = () => {
         >
           Logout
         </button>
-      </div>
-
-      <div style={{ marginBottom: "30px" }}>
-        <div style={{ display: "flex", gap: "15px", flexWrap: "wrap" }}>
-          {nodes.map((node) => (
-            <div
-              key={node._id}
-              style={{
-                padding: "15px",
-                borderRadius: "8px",
-                border: "1px solid #ddd",
-                minWidth: "180px",
-                backgroundColor:
-                  node.status === "Ready" ? "#f0fff4" : "#fff5f5",
-              }}
-            >
-              <div style={{ fontWeight: "bold" }}>{node.name}</div>
-              <div style={{ fontSize: "12px", color: "#666" }}>
-                Role: {node.role}
-              </div>
-              <div
-                style={{
-                  marginTop: "10px",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                <span>{node.status.toUpperCase()}</span>
-                <span style={{ fontSize: "12px" }}>Pods: {node.podCount}</span>
-              </div>
-            </div>
-          ))}
-        </div>
       </div>
 
       <div

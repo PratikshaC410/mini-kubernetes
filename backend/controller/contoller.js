@@ -14,26 +14,18 @@ const {
  */
 const reconcile = async () => {
   try {
-    console.log("--- Starting Reconciliation Loop ---");
+    console.log("--- Starting Reconciliation Loop ---"); //sync hardware ie nodes
 
-    //sync hardware ie nodes
-    await syncNodeHealth();
-    //  POD MANAGER: Sync actual container health to MongoDB
+    await syncNodeHealth(); //  POD MANAGER: Sync actual container health to MongoDB
     // (Ensures your DB knows which pods are actually running)
-    await syncPodHealth();
+    await syncPodHealth(); // Get desired state from DB (only active deployments)
 
-    // Get desired state from DB (only active deployments)
-    const desiredStates = await Deployment_db.find({ status: "active" });
-    // Get actual state from Kubernetes
-    const actualStates = await getDeployments();
+    const desiredStates = await Deployment_db.find({ status: "active" }); // Get actual state from Kubernetes
+    const actualStates = await getDeployments(); //  SYNC: DB -> KUBERNETES (Create or Scale)
 
-    //  SYNC: DB -> KUBERNETES (Create or Scale)
     for (const desired of desiredStates) {
-      const actual = actualStates.find(
-        (a) => a.name === desired.name && a.namespace === desired.namespace,
-      );
+      const actual = actualStates.find((a) => a.name === desired.name); // If it exists in DB but not in K8s: CREATE
 
-      // If it exists in DB but not in K8s: CREATE
       if (!actual) {
         console.log(
           `[RECONCILE] Missing Deployment: ${desired.name}. Recreating...`,
@@ -44,7 +36,6 @@ const reconcile = async () => {
             image: desired.image,
             replicas: desired.replicas,
             containerPort: desired.containerPort,
-            namespace: desired.namespace,
           });
         } catch (err) {
           console.error(
@@ -53,9 +44,8 @@ const reconcile = async () => {
           );
         }
         continue;
-      }
+      } // If replicas are not matching: SCALE
 
-      // If replicas are not matching: SCALE
       if (Number(desired.replicas) !== Number(actual.replicas)) {
         console.log(
           `[RECONCILE] Replica Mismatch for ${desired.name}. Scaling ${actual.replicas} -> ${desired.replicas}`,
@@ -69,10 +59,9 @@ const reconcile = async () => {
           );
         }
       }
-    }
+    } //  KUBERNETES -> DB :-delete
+    // If it exists in K8s but NOT in  DB: DELETE
 
-    //  KUBERNETES -> DB :-delete
-    // If it exists in K8s but NOT in  DB: DELETE
     for (const actual of actualStates) {
       const stillDesired = desiredStates.find((d) => d.name === actual.name);
 
@@ -89,7 +78,7 @@ const reconcile = async () => {
 
     console.log("Reconciliation Complete");
   } catch (err) {
-    console.error("Reconciliation Loop  Error:", err.message);
+    console.error("Reconciliation Loop  Error:", err.message);
   }
 };
 

@@ -8,13 +8,11 @@ const syncPodHealth = async () => {
     const pods = response.body.items;
 
     const syncPromises = pods.map(async (pod) => {
-      //  see the app label (this connects the pod to the deployment)
-      const appLabel = pod.metadata.labels.app;
+      //  see the app label (this connects the pod to the deployment)
+      const appLabel = pod.metadata.labels.app; //  Find the Deployment in MongoDB using the label
 
-      //  Find the Deployment in MongoDB using the label
-      const parentDeployment = await Deployment_db.findOne({ name: appLabel });
+      const parentDeployment = await Deployment_db.findOne({ name: appLabel }); //  Only sync if the pod belongs to a deployment we created
 
-      //  Only sync if the pod belongs to a deployment we created
       if (parentDeployment) {
         const containerStatus = pod.status.containerStatuses?.[0];
 
@@ -43,15 +41,11 @@ const syncPodHealth = async () => {
           `[POD MANAGER] No DB match found for pod label: ${appLabel}`,
         );
       }
-    });
-    //execute everything
-    await Promise.all(syncPromises);
+    }); //execute everything
+    await Promise.all(syncPromises); //  Remove pods from MongoDB that no longer exist in the cluster
 
-    //  Remove pods from MongoDB that no longer exist in the cluster
     const activeUids = pods.map((p) => p.metadata.uid);
-    await pod_db.deleteMany({ containerId: { $nin: activeUids } });
-
-    // console.log(`Successfully synced ${pods.length} containers.`);
+    await pod_db.deleteMany({ containerId: { $nin: activeUids } }); // console.log(`Successfully synced ${pods.length} containers.`);
   } catch (err) {
     console.error("Pod Manager Sync Error:", err.message);
   }

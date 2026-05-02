@@ -17,6 +17,22 @@ const createDeployment = async ({
 }) => {
   const ns = namespace || "default";
 
+  // AUTO-CREATE NAMESPACE LOGIC
+  try {
+    // Try to read the namespace
+    await k8sCoreApi.readNamespace(ns);
+  } catch (err) {
+    // If it doesn't exist (404), create it
+    if (err.response && err.response.statusCode === 404) {
+      console.log(`Namespace "${ns}" not found. Creating it...`);
+      await k8sCoreApi.createNamespace({
+        metadata: { name: ns },
+      });
+    } else {
+      throw err;
+    }
+  }
+
   const k8sName = name.replace(/\s+/g, "-").toLowerCase();
 
   const manifest = {
@@ -58,7 +74,6 @@ const createDeployment = async ({
     throw err;
   }
 };
-
 // DELETE
 const deleteDeployment = async (name, namespace) => {
   const ns = namespace || "default";
@@ -159,5 +174,6 @@ module.exports = {
   scaleDeployment,
   getPodLogs,
   getNodes,
+  k8sApi: k8sCoreApi,
   k8sApiLogs: k8sCoreApi,
 };

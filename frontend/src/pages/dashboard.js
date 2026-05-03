@@ -114,8 +114,14 @@ const Dashboard = () => {
       const data = await res.json();
 
       if (res.ok) {
-        toast(`Success: ${data.msg}`);
-        fetchDeployments();
+        toast("Scaling...");
+        await fetchDeployments();
+        await fetchPods();
+
+        setTimeout(() => {
+          fetchDeployments();
+          fetchPods();
+        }, 3000);
       } else {
         toast.error(`Error: ${data.error || data.msg}`);
       }

@@ -109,37 +109,19 @@ const getDeployments = async (namespace) => {
     return [];
   }
 };
-
 const scaleDeployment = async (name, replicas, namespace) => {
   const ns = namespace || "default";
 
-  try {
-    return await k8sAppsApi.patchNamespacedDeploymentScale(
-      name,
-      ns,
-      [
-        {
-          op: "replace",
-          path: "/spec/replicas",
-          value: Number(replicas),
-        },
-      ],
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      {
-        headers: {
-          "Content-Type": "application/json-patch+json",
-        },
-      },
-    );
-  } catch (err) {
-    console.error("SCALE ERROR:", err.message);
-    throw err;
-  }
-};
+  const current = await k8sAppsApi.readNamespacedDeploymentScale(name, ns);
 
+  current.body.spec.replicas = Number(replicas);
+
+  return await k8sAppsApi.replaceNamespacedDeploymentScale(
+    name,
+    ns,
+    current.body,
+  );
+};
 //  LOGS
 const getPodLogs = async (podName, namespace) => {
   const ns = namespace || "default";

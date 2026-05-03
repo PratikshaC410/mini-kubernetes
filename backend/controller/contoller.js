@@ -14,14 +14,19 @@ const {
  */
 const reconcile = async () => {
   try {
-    console.log("--- Starting Reconciliation Loop ---"); //sync hardware ie nodes
+    console.log("Starting Reconciliation Loop");
+    //sync hardware ie nodes
+    await syncNodeHealth();
 
-    await syncNodeHealth(); //  POD MANAGER: Sync actual container health to MongoDB
+    //  POD MANAGER: Sync actual container health to MongoDB
     // (Ensures your DB knows which pods are actually running)
-    await syncPodHealth(); // Get desired state from DB (only active deployments)
+    await syncPodHealth();
 
-    const desiredStates = await Deployment_db.find({ status: "active" }); // Get actual state from Kubernetes
-    const actualStates = await getDeployments(); //  SYNC: DB -> KUBERNETES (Create or Scale)
+    const desiredStates = await Deployment_db.find({ status: "active" }); // Get desired state from DB (only active deployments)
+
+    const actualStates = await getDeployments(); // Get actual state from Kubernetes
+
+    //  SYNC: DB -> KUBERNETES (Create or Scale)
 
     for (const desired of desiredStates) {
       const actual = actualStates.find((a) => a.name === desired.name); // If it exists in DB but not in K8s: CREATE
@@ -44,7 +49,8 @@ const reconcile = async () => {
           );
         }
         continue;
-      } // If replicas are not matching: SCALE
+      }
+      // If replicas are not matching: SCALE
 
       if (Number(desired.replicas) !== Number(actual.replicas)) {
         console.log(
@@ -59,7 +65,9 @@ const reconcile = async () => {
           );
         }
       }
-    } //  KUBERNETES -> DB :-delete
+    }
+
+    //  KUBERNETES -> DB :-delete
     // If it exists in K8s but NOT in  DB: DELETE
 
     for (const actual of actualStates) {
@@ -78,7 +86,7 @@ const reconcile = async () => {
 
     console.log("Reconciliation Complete");
   } catch (err) {
-    console.error("Reconciliation Loop  Error:", err.message);
+    console.error("Reconciliation Loop Error:", err.message);
   }
 };
 

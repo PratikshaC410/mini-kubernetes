@@ -41,11 +41,11 @@ const syncPodHealth = async () => {
           `[POD MANAGER] No DB match found for pod label: ${appLabel}`,
         );
       }
-    }); //execute everything
+    });
     await Promise.all(syncPromises); //  Remove pods from MongoDB that no longer exist in the cluster
 
     const activeUids = pods.map((p) => p.metadata.uid);
-    await pod_db.deleteMany({ containerId: { $nin: activeUids } }); // console.log(`Successfully synced ${pods.length} containers.`);
+    await pod_db.deleteMany({ containerId: { $nin: activeUids } });
   } catch (err) {
     console.error("Pod Manager Sync Error:", err.message);
   }

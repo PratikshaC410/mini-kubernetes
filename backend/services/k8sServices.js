@@ -110,7 +110,6 @@ const getDeployments = async (namespace) => {
   }
 };
 
-//  SCALE
 const scaleDeployment = async (name, replicas, namespace) => {
   const ns = namespace || "default";
 
@@ -118,16 +117,20 @@ const scaleDeployment = async (name, replicas, namespace) => {
     return await k8sAppsApi.patchNamespacedDeploymentScale(
       name,
       ns,
-      {
-        spec: { replicas: Number(replicas) },
-      },
+      [
+        {
+          op: "replace",
+          path: "/spec/replicas",
+          value: Number(replicas),
+        },
+      ],
       undefined,
       undefined,
       undefined,
       undefined,
       {
         headers: {
-          "Content-Type": "application/merge-patch+json",
+          "Content-Type": "application/json-patch+json",
         },
       },
     );

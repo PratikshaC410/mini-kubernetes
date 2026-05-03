@@ -11,7 +11,8 @@ const Dashboard = () => {
 
   const [deployments, setDeployments] = useState([]);
   const [pods, setPods] = useState([]);
-
+  const [envVars, setEnvVars] = useState([{ key: "", value: "" }]);
+  const [secrets, setSecrets] = useState([{ key: "", value: "" }]);
   const [replicaInputs, setReplicaInputs] = useState({});
 
   const [name, setName] = useState("");
@@ -58,9 +59,28 @@ const Dashboard = () => {
       return () => clearInterval(interval);
     }
   }, [token]);
+  const handleAddEnv = () => setEnvVars([...envVars, { key: "", value: "" }]);
+  const handleAddSecret = () =>
+    setSecrets([...secrets, { key: "", value: "" }]);
+
+  const updateEnv = (index, field, val) => {
+    const updated = [...envVars];
+    updated[index][field] = val;
+    setEnvVars(updated);
+  };
+
+  const updateSecret = (index, field, val) => {
+    const updated = [...secrets];
+    updated[index][field] = val;
+    setSecrets(updated);
+  };
 
   const handleCreate = async (e) => {
     e.preventDefault();
+    // Filter out any empty rows before sending
+    const filteredEnv = envVars.filter((ev) => ev.key && ev.value);
+    const filteredSecrets = secrets.filter((s) => s.key && s.value);
+
     try {
       const res = await fetch(`${API}/api/auth/deployments`, {
         method: "POST",
@@ -74,17 +94,22 @@ const Dashboard = () => {
           replicas,
           containerPort: Number(containerPort),
           namespace,
+          envVars: filteredEnv, // Pass ConfigMaps
+          secrets: filteredSecrets, // Pass Secrets
         }),
       });
 
       if (res.ok) {
-        console.log("okh");
         toast.success("Deployment Created");
         setName("");
         setImage("");
         setReplicas(1);
         setContainerPort("");
         setNamespace("");
+
+        setEnvVars([{ key: "", value: "" }]);
+        setSecrets([{ key: "", value: "" }]);
+
         fetchDeployments();
       } else {
         const errorData = await res.json();
@@ -94,6 +119,7 @@ const Dashboard = () => {
       toast.error("Network failed. Is the backend running?");
     }
   };
+
   const handleScale = async (depName) => {
     const newCount = replicaInputs[depName];
     if (newCount === undefined) return;
@@ -269,6 +295,70 @@ const Dashboard = () => {
               style={{ width: "90%", padding: "8px" }}
             />
           </div>
+          <div style={{ gridColumn: "span 2", marginTop: "10px" }}>
+            <h4 style={{ marginBottom: "10px" }}>
+              Environment Variables (ConfigMaps)
+            </h4>
+            {envVars.map((ev, index) => (
+              <div
+                key={index}
+                style={{ display: "flex", gap: "10px", marginBottom: "5px" }}
+              >
+                <input
+                  placeholder="KEY"
+                  value={ev.key}
+                  onChange={(e) => updateEnv(index, "key", e.target.value)}
+                  style={{ flex: 1, padding: "5px" }}
+                />
+                <input
+                  placeholder="VALUE"
+                  value={ev.value}
+                  onChange={(e) => updateEnv(index, "value", e.target.value)}
+                  style={{ flex: 1, padding: "5px" }}
+                />
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={handleAddEnv}
+              style={{ fontSize: "12px", marginTop: "5px", cursor: "pointer" }}
+            >
+              + Add Variable
+            </button>
+          </div>
+
+          <div style={{ gridColumn: "span 2", marginTop: "10px" }}>
+            <h4 style={{ marginBottom: "10px" }}>
+              Secrets (Encrypted Passwords)
+            </h4>
+            {secrets.map((s, index) => (
+              <div
+                key={index}
+                style={{ display: "flex", gap: "10px", marginBottom: "5px" }}
+              >
+                <input
+                  placeholder="SECRET_KEY"
+                  value={s.key}
+                  onChange={(e) => updateSecret(index, "key", e.target.value)}
+                  style={{ flex: 1, padding: "5px" }}
+                />
+                <input
+                  type="password"
+                  placeholder="SECRET_VALUE"
+                  value={s.value}
+                  onChange={(e) => updateSecret(index, "value", e.target.value)}
+                  style={{ flex: 1, padding: "5px" }}
+                />
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={handleAddSecret}
+              style={{ fontSize: "12px", marginTop: "5px", cursor: "pointer" }}
+            >
+              + Add Secret
+            </button>
+          </div>
           <button
             type="submit"
             style={{
@@ -358,10 +448,10 @@ const Dashboard = () => {
                 </tr>
               </thead>
               <tbody>
-                {pods.filter((p) => String(p.deploymentId) === String(dep._id))
-                  .length > 0 ? (
+                {pods.filter((p) => p.deploymentName === dep.name).length >
+                0 ? (
                   pods
-                    .filter((p) => String(p.deploymentId) === String(dep._id))
+                    .filter((p) => p.deploymentName === dep.name)
                     .map((pod) => (
                       <tr
                         key={pod.containerId}

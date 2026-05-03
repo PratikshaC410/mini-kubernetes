@@ -14,26 +14,27 @@ const {
  */
 const reconcile = async () => {
   try {
-    console.log("Starting Reconciliation Loop");
-    //sync hardware ie nodes
+    console.log("--- Starting Reconciliation Loop ---");
     await syncNodeHealth();
-
-    //  POD MANAGER: Sync actual container health to MongoDB
-    // (Ensures your DB knows which pods are actually running)
     await syncPodHealth();
 
-    const desiredStates = await Deployment_db.find({ status: "active" }); // Get desired state from DB (only active deployments)
+    const desiredStates = await Deployment_db.find({ status: "active" });
 
-    const actualStates = await getDeployments(); // Get actual state from Kubernetes
-
-    //  SYNC: DB -> KUBERNETES (Create or Scale)
+    // IMPORTANT: You need to decide if getDeployments() fetches ALL or per namespace.
+    // Assuming getDeployments() now returns items with a .namespace property.
+    const actualStates = await getDeployments();
 
     for (const desired of desiredStates) {
-      const actual = actualStates.find((a) => a.name === desired.name); // If it exists in DB but not in K8s: CREATE
+      // Find the actual state matching BOTH name and namespace
+      const actual = actualStates.find(
+        (a) =>
+          a.name === desired.name &&
+          a.namespace === (desired.namespace || "default"),
+      );
 
       if (!actual) {
         console.log(
-          `[RECONCILE] Missing Deployment: ${desired.name}. Recreating...`,
+          `[RECONCILE] Missing: ${desired.name} in ${desired.namespace}. Recreating...`,
         );
         try {
           await createDeployment({
@@ -41,45 +42,48 @@ const reconcile = async () => {
             image: desired.image,
             replicas: desired.replicas,
             containerPort: desired.containerPort,
+            namespace: desired.namespace,
+            envVars: desired.envVars,
+            secrets: desired.secrets,
           });
         } catch (err) {
-          console.error(
-            `[RECONCILE] Create Failed for ${desired.name}:`,
-            err.message,
-          );
+          console.error(`[RECONCILE] Create Failed:`, err.message);
         }
         continue;
       }
-      // If replicas are not matching: SCALE
 
       if (Number(desired.replicas) !== Number(actual.replicas)) {
         console.log(
-          `[RECONCILE] Replica Mismatch for ${desired.name}. Scaling ${actual.replicas} -> ${desired.replicas}`,
+          `[RECONCILE] Scaling ${desired.name} in ${desired.namespace}...`,
         );
         try {
-          await scaleDeployment(desired.name, desired.replicas);
-        } catch (err) {
-          console.error(
-            `[RECONCILE] Scale Failed for ${desired.name}:`,
-            err.message,
+          // PASS NAMESPACE TO SCALE
+          await scaleDeployment(
+            desired.name,
+            desired.replicas,
+            desired.namespace,
           );
+        } catch (err) {
+          console.error(`[RECONCILE] Scale Failed:`, err.message);
         }
       }
     }
 
-    //  KUBERNETES -> DB :-delete
-    // If it exists in K8s but NOT in  DB: DELETE
-
+    // Handle Deletions (K8s -> DB)
     for (const actual of actualStates) {
-      const stillDesired = desiredStates.find((d) => d.name === actual.name);
+      const stillDesired = desiredStates.find(
+        (d) => d.name === actual.name && d.namespace === actual.namespace,
+      );
 
       if (!stillDesired) {
-        console.log(` Deployment found: ${actual.name}. Deleting from K8s...`);
+        console.log(
+          `[RECONCILE] Orphan found: ${actual.name} in ${actual.namespace}. Deleting...`,
+        );
         try {
-          await deleteDeployment(actual.name);
-          console.log(` Successfully deleted ${actual.name}`);
+          // PASS NAMESPACE TO DELETE
+          await deleteDeployment(actual.name, actual.namespace);
         } catch (err) {
-          console.error(` Delete Failed for ${actual.name}:`, err.message);
+          console.error(`[RECONCILE] Delete Failed:`, err.message);
         }
       }
     }
@@ -89,7 +93,6 @@ const reconcile = async () => {
     console.error("Reconciliation Loop Error:", err.message);
   }
 };
-
 const startController = () => {
   reconcile();
 

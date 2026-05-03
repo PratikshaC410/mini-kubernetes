@@ -107,6 +107,8 @@ const desired_state_schema = new mongoose.Schema(
       default: "active",
     },
     namespace: { type: String, default: "default" },
+    envVars: [{ key: String, value: String }],
+    secrets: [{ key: String, encryptedValue: String }],
   },
   { timestamps: true },
 );

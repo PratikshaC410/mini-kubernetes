@@ -3,11 +3,13 @@ require("dotenv").config();
 const bcrypt = require("bcryptjs");
 const nodemailer = require("nodemailer");
 const { getPodLogs, k8sApiLogs } = require("../services/k8sServices");
+const { encrypt } = require("../services/encrypt");
 const {
   createDeployment,
   deleteDeployment,
   getDeployments,
   scaleDeployment,
+  getPods,
   k8sApi,
 } = require("../services/k8sServices");
 
@@ -125,41 +127,50 @@ const login = async (req, res) => {
 };
 
 // CREATE DEPLOYMENT
+
 const create_deployment = async (req, res) => {
   try {
-    const { name, image, replicas, containerPort, namespace } = req.body;
+    // 1. Capture envVars and secrets from the request body
+    const {
+      name,
+      image,
+      replicas,
+      containerPort,
+      namespace,
+      envVars,
+      secrets,
+    } = req.body;
     const userId = req.userId;
 
     if (!userId) {
       return res.status(401).json({ msg: "Unauthorized: No User ID found" });
     }
 
-    // Default to 'default' if the user provides an empty string
     const targetNamespace = namespace || "default";
 
-    // --- START AUTO-CREATE NAMESPACE LOGIC ---
+    // --- NAMESPACE LOGIC ---
     try {
-      // Attempt to read the namespace to see if it exists
       await k8sApi.readNamespace(targetNamespace);
     } catch (err) {
-      // If statusCode is 404, the namespace is missing
       if (err.response && err.response.statusCode === 404) {
-        console.log(
-          `Namespace "${targetNamespace}" not found. Creating it now...`,
-        );
         await k8sApi.createNamespace({
           metadata: { name: targetNamespace },
         });
       } else {
-        // If it's a different error (e.g., connection/auth), throw it to be caught below
         throw err;
       }
     }
-    // --- END AUTO-CREATE NAMESPACE LOGIC ---
 
     const safeName = name.toLowerCase().replace(/[^a-z0-9]/g, "-");
     const uniqueName = `${safeName}-${Date.now()}`;
 
+    // 2. Encrypt secrets before saving to the database
+    const processedSecrets = (secrets || []).map((s) => ({
+      key: s.key,
+      encryptedValue: encrypt(s.value), // Encrypting sensitive data at rest
+    }));
+
+    // 3. Save to MongoDB including the new arrays
     const desiredState = await Deployment_db.create({
       name: uniqueName,
       image: image || "registry.k8s.io/pause:3.10",
@@ -168,14 +179,19 @@ const create_deployment = async (req, res) => {
       namespace: targetNamespace,
       createdBy: userId,
       status: "active",
+      envVars: envVars || [], // Save ConfigMap data
+      secrets: processedSecrets, // Save Encrypted Secret data
     });
 
+    // 4. Pass the data to the Kubernetes service
     await createDeployment({
       name: uniqueName,
       image: desiredState.image,
       replicas: desiredState.replicas,
       containerPort: desiredState.containerPort,
       namespace: desiredState.namespace,
+      envVars: desiredState.envVars,
+      secrets: desiredState.secrets,
     });
 
     res.status(201).json({
@@ -190,6 +206,7 @@ const create_deployment = async (req, res) => {
     });
   }
 };
+
 //  DELETE DEPLOYMENT
 const delete_deployment = async (req, res) => {
   try {
@@ -344,31 +361,24 @@ const get_deployment_logs = async (req, res) => {
 };
 
 //  GET USER PODS
+
 const get_all_pods = async (req, res) => {
   try {
-    const userId = req.userId;
+    const pods = await getPods(); // from your service
 
-    const allPods = await pod_db.find({});
+    // map pods properly for frontend
+    const formatted = pods.map((pod) => ({
+      podName: pod.podName,
+      nodeId: pod.nodeId,
+      status: pod.status, //  already computed
+      restartCount: pod.restartCount,
+      deploymentName: pod.deploymentName, // important
+    }));
 
-    const userDeployments = await Deployment_db.find({
-      createdBy: userId,
-    });
-
-    const userDeploymentIds = userDeployments.map((d) => d._id.toString());
-
-    const filteredPods = allPods.filter(
-      (pod) =>
-        pod.deploymentId &&
-        userDeploymentIds.includes(pod.deploymentId.toString()),
-    );
-
-    res.status(200).json(filteredPods);
+    res.status(200).json(formatted);
   } catch (err) {
-    console.error("GET_ALL_PODS ERROR:", err);
-    res.status(500).json({
-      msg: "Server Error fetching pods",
-      error: err.message,
-    });
+    console.error("Error fetching pods:", err);
+    res.status(500).json({ error: "Failed to fetch pods" });
   }
 };
 

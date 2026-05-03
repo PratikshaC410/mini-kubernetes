@@ -1,6 +1,6 @@
 const k8s = require("@kubernetes/client-node");
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
-
+const { encrypt, decrypt } = require("./encrypt");
 const kc = new k8s.KubeConfig();
 kc.loadFromDefault();
 
@@ -14,9 +14,17 @@ const createDeployment = async ({
   replicas,
   containerPort,
   namespace,
+  envVars = [],
+  secrets = [],
 }) => {
   const ns = namespace || "default";
-
+  const env = [
+    ...(envVars || []).map((ev) => ({ name: ev.key, value: ev.value })),
+    ...(secrets || []).map((s) => ({
+      name: s.key,
+      value: decrypt(s.encryptedValue),
+    })),
+  ];
   // AUTO-CREATE NAMESPACE LOGIC
   try {
     // Try to read the namespace
@@ -56,6 +64,7 @@ const createDeployment = async ({
             {
               name: `container-${k8sName}`,
               image: image || "registry.k8s.io/pause:3.10",
+              env: env,
               ports: [{ containerPort: Number(containerPort) || 80 }],
             },
           ],
@@ -86,11 +95,10 @@ const deleteDeployment = async (name, namespace) => {
 };
 
 // GET DEPLOYMENTS
-const getDeployments = async (namespace) => {
-  const ns = namespace || "default";
-
+const getDeployments = async () => {
   try {
-    const res = await k8sAppsApi.listNamespacedDeployment(ns);
+    // This fetches EVERY deployment in the cluster
+    const res = await k8sAppsApi.listDeploymentForAllNamespaces();
 
     return res.body.items.map((dep) => {
       const desired = dep.spec?.replicas || 0;
@@ -105,7 +113,7 @@ const getDeployments = async (namespace) => {
       };
     });
   } catch (err) {
-    console.error("GET ERROR:", err.message);
+    console.error("GET ALL NAMESPACES ERROR:", err.message);
     return [];
   }
 };
@@ -152,6 +160,26 @@ const getNodes = async () => {
   }
 };
 
+const getPods = async () => {
+  try {
+    const res = await k8sCoreApi.listPodForAllNamespaces();
+
+    return res.body.items.map((pod) => {
+      const containerStatus = pod.status.containerStatuses?.[0];
+      return {
+        podName: pod.metadata.name,
+        namespace: pod.metadata.namespace,
+        nodeId: pod.spec.nodeName,
+        status: pod.status.phase,
+        restartCount: containerStatus?.restartCount || 0,
+        deploymentName: pod.metadata.labels?.app,
+      };
+    });
+  } catch (err) {
+    return [];
+  }
+};
+
 module.exports = {
   createDeployment,
   deleteDeployment,
@@ -159,6 +187,7 @@ module.exports = {
   scaleDeployment,
   getPodLogs,
   getNodes,
+  getPods,
   k8sApi: k8sCoreApi,
   k8sApiLogs: k8sCoreApi,
 };

@@ -328,9 +328,7 @@ const Dashboard = () => {
           </div>
 
           <div style={{ gridColumn: "span 2", marginTop: "10px" }}>
-            <h4 style={{ marginBottom: "10px" }}>
-              Secrets (Encrypted Passwords)
-            </h4>
+            <h4 style={{ marginBottom: "10px" }}>Secrets (Passwords)</h4>
             {secrets.map((s, index) => (
               <div
                 key={index}

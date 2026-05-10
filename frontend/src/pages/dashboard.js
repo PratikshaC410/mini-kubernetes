@@ -425,7 +425,6 @@ const Dashboard = () => {
               </button>
             </div>
           </div>
-
           <div style={{ marginTop: "20px" }}>
             <h5 style={{ marginBottom: "10px", color: "#666" }}>
               Info about runnig pods

@@ -25,12 +25,12 @@ const createDeployment = async ({
       value: decrypt(s.encryptedValue),
     })),
   ];
-  // AUTO-CREATE NAMESPACE LOGIC
+  // creating namespace by the user
   try {
     // Try to read the namespace
     await k8sCoreApi.readNamespace(ns);
   } catch (err) {
-    // If it doesn't exist (404), create it
+    // If it does not  exist then create it
     if (err.response && err.response.statusCode === 404) {
       console.log(`Namespace "${ns}" not found. Creating it...`);
       await k8sCoreApi.createNamespace({
@@ -97,7 +97,7 @@ const deleteDeployment = async (name, namespace) => {
 // GET DEPLOYMENTS
 const getDeployments = async () => {
   try {
-    // This fetches EVERY deployment in the cluster
+    // This fetches all the depl
     const res = await k8sAppsApi.listDeploymentForAllNamespaces();
 
     return res.body.items.map((dep) => {

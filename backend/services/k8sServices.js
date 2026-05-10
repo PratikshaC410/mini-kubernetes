@@ -4,8 +4,8 @@ const { encrypt, decrypt } = require("./encrypt");
 const kc = new k8s.KubeConfig();
 kc.loadFromDefault();
 
-const k8sAppsApi = kc.makeApiClient(k8s.AppsV1Api);
-const k8sCoreApi = kc.makeApiClient(k8s.CoreV1Api);
+const k8sAppsApi = kc.makeApiClient(k8s.AppsV1Api); //for deployments
+const k8sCoreApi = kc.makeApiClient(k8s.CoreV1Api); //for pods,nodes,namespaces
 
 //  CREATE DEPLOYMENT
 const createDeployment = async ({
@@ -27,7 +27,7 @@ const createDeployment = async ({
   ];
   // creating namespace by the user
   try {
-    // Try to read the namespace
+    //  read the namespace
     await k8sCoreApi.readNamespace(ns);
   } catch (err) {
     // If it does not  exist then create it

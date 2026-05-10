@@ -342,7 +342,7 @@ const Dashboard = () => {
                 />
                 <input
                   type="password"
-                  placeholder="SECRET_VALUE"
+                  placeholder="SECRET_VAL"
                   value={s.value}
                   onChange={(e) => updateSecret(index, "value", e.target.value)}
                   style={{ flex: 1, padding: "5px" }}
@@ -454,9 +454,7 @@ const Dashboard = () => {
                         key={pod.containerId}
                         style={{ borderBottom: "1px solid #f2f2f2" }}
                       >
-                        <td style={{ padding: "10px" }}>
-                          {pod.podName || pod.containerId.substring(0, 10)}
-                        </td>
+                        <td style={{ padding: "10px" }}>{pod.podName}</td>
                         <td
                           style={{
                             padding: "10px",

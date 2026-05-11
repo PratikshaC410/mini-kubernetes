@@ -64,6 +64,7 @@ const createDeployment = async ({
             {
               name: `container-${k8sName}`,
               image: image || "registry.k8s.io/pause:3.10",
+              command: ["/bin/bash", "-c", "while true; do sleep 30; done;"], // this is to make ubuntu image work without exiting
               env: env,
               ports: [{ containerPort: Number(containerPort) || 80 }],
             },
@@ -159,23 +160,40 @@ const getNodes = async () => {
     return [];
   }
 };
-
 const getPods = async () => {
   try {
     const res = await k8sCoreApi.listPodForAllNamespaces();
 
     return res.body.items.map((pod) => {
       const containerStatus = pod.status.containerStatuses?.[0];
+
+      //  Running, Pending
+      let displayStatus = pod.status.phase;
+
+      if (containerStatus) {
+        if (containerStatus.state.waiting) {
+          // This captures "CrashLoopBackOff", "ImagePullBackOff", "ErrImagePull"
+          displayStatus = containerStatus.state.waiting.reason;
+        } else if (containerStatus.state.terminated) {
+          // This captures "Error" or "Completed"
+          displayStatus = containerStatus.state.terminated.reason;
+        } else if (containerStatus.state.running && !containerStatus.ready) {
+          // The process is running but hasn't passed Readiness Probes
+          displayStatus = "Running (Not Ready)";
+        }
+      }
+
       return {
         podName: pod.metadata.name,
         namespace: pod.metadata.namespace,
         nodeId: pod.spec.nodeName,
-        status: pod.status.phase,
+        status: displayStatus,
         restartCount: containerStatus?.restartCount || 0,
         deploymentName: pod.metadata.labels?.app,
       };
     });
   } catch (err) {
+    console.error("Fetch Pods Error:", err);
     return [];
   }
 };

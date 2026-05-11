@@ -64,7 +64,7 @@ const createDeployment = async ({
             {
               name: `container-${k8sName}`,
               image: image || "registry.k8s.io/pause:3.10",
-              command: ["/bin/bash", "-c", "while true; do sleep 30; done;"], // this is to make ubuntu image work without exiting
+              // command: ["/bin/bash", "-c", "while true; do sleep 30; done;"], // this is to make ubuntu image work without exiting
               env: env,
               ports: [{ containerPort: Number(containerPort) || 80 }],
             },

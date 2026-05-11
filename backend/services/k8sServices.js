@@ -172,13 +172,13 @@ const getPods = async () => {
 
       if (containerStatus) {
         if (containerStatus.state.waiting) {
-          // This captures "CrashLoopBackOff", "ImagePullBackOff", "ErrImagePull"
+          // This tells about CrashLoopBackOff, ImagePullBackOff, ErrImagePull
           displayStatus = containerStatus.state.waiting.reason;
         } else if (containerStatus.state.terminated) {
-          // This captures "Error" or "Completed"
+          //this tells the reason of termination
           displayStatus = containerStatus.state.terminated.reason;
         } else if (containerStatus.state.running && !containerStatus.ready) {
-          // The process is running but hasn't passed Readiness Probes
+          // The process is running but is not ready
           displayStatus = "Running (Not Ready)";
         }
       }

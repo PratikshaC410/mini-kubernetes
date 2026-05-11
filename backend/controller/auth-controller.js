@@ -331,11 +331,11 @@ const get_deployment_logs = async (req, res) => {
 
     const podRes = await k8sApiLogs.listNamespacedPod(
       namespace,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      `app=${name}`,
+      undefined, //pretty(Kubernetes returns normal JSON.Useful for debugging manually.)
+      undefined, //allowWatchBookmarks(Kubernetes watches are realtime streams.used in controller and realtime dashbaords)
+      undefined, //. _continue(Used for pagination.You send that token back to get next batch.)
+      undefined, //fieldSelector(This filters pods using Kubernetes internal fields like finding the pahes or status like running etc)
+      `app=${name}`, //label selector
     );
 
     const pods = podRes.body.items;

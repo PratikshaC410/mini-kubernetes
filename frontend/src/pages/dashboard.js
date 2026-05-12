@@ -77,7 +77,6 @@ const Dashboard = () => {
 
   const handleCreate = async (e) => {
     e.preventDefault();
-    // Filter out any empty rows before sending
     const filteredEnv = envVars.filter((ev) => ev.key && ev.value);
     const filteredSecrets = secrets.filter((s) => s.key && s.value);
 

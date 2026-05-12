@@ -116,7 +116,7 @@ const Dashboard = () => {
         toast.error(`Server Error: ${errorData.message || "Internal Error"}`);
       }
     } catch (err) {
-      toast.error("Network failed. Is the backend running?");
+      toast.error("creation failed");
     }
   };
 

@@ -3,7 +3,7 @@ require("dotenv").config();
 const bcrypt = require("bcryptjs");
 const nodemailer = require("nodemailer");
 const { getPodLogs, k8sApiLogs } = require("../services/k8sServices");
-const { encrypt } = require("../services/encrypt");
+const { encrypt, decrypt } = require("../services/encrypt");
 const {
   createDeployment,
   deleteDeployment,
@@ -148,7 +148,7 @@ const create_deployment = async (req, res) => {
 
     const targetNamespace = namespace || "default";
 
-    // --- NAMESPACE LOGIC ---
+    // Nnamespace logic
     try {
       await k8sApi.readNamespace(targetNamespace);
     } catch (err) {
@@ -167,7 +167,7 @@ const create_deployment = async (req, res) => {
     // 2. Encrypt secrets before saving to the database
     const processedSecrets = (secrets || []).map((s) => ({
       key: s.key,
-      encryptedValue: encrypt(s.value), // Encrypting sensitive data at rest
+      encryptedValue: encrypt(s.value), // Encrypting the passwords and secrets
     }));
 
     // 3. Save to MongoDB including the new arrays
@@ -190,8 +190,10 @@ const create_deployment = async (req, res) => {
       replicas: desiredState.replicas,
       containerPort: desiredState.containerPort,
       namespace: desiredState.namespace,
-      envVars: desiredState.envVars,
-      secrets: desiredState.secrets,
+      secrets: desiredState.secrets.map((s) => ({
+        key: s.key,
+        value: decrypt(s.encryptedValue),
+      })),
     });
 
     res.status(201).json({
